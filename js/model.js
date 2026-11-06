@@ -297,12 +297,35 @@ export const gapSecondHand = g => SECOND_HAND_OK.has(GAP_CAT[g]);
 const SHOP_CAT = { top: ['tops', 'Tops'], bottom: ['bottoms', 'Bottoms'], outerwear: ['outerwear', 'Outerwear'], shoes: ['shoes', 'Shoes'], accessory: ['accessories', 'Accessories'], dress: ['dresses-skirts', 'Dresses'] };
 const WANT_STYLE = { casual: ['casual'], 'smart-casual': ['smart', 'business'], formal: ['formal', 'business'], activewear: ['sport'] };
 
+// ---- product gender: "Shop for" is a hard filter. Inferred from the catalog row itself.
+const BRAND_G = { Ardene: 'w', 'Hilary MacMillan': 'w' }; // women's-only stores whose feed has no gender
+const W_TXT = /\b(women'?s?|womens|ladies|girls?)\b|\/(womens?|women)[\/-]/;
+const M_TXT = /\b(men'?s?|mens|boys?)\b|\/(mens?|men)[\/-]/;
+const W_CUT = /\b(dress|skirt|bodysuit|blouse|bra|bralette|cami|tube top|halter|leggings?|heels?|ballerina|mules?|built in cup|knee[- ]high|over the knee|maxi|midi)\b/;
+// -> 'm' | 'w' | 'u' (unisex) | 'unknown'
+export function productGender(p) {
+  if (p.g === 'm' || p.g === 'w') return p.g;
+  const t = `${p.name || ''} ${p.url || ''}`.toLowerCase();
+  const w = W_TXT.test(t), m = M_TXT.test(t);
+  if (w !== m) return w ? 'w' : 'm';
+  if (p.cat === 'dress' || W_CUT.test((p.name || '').toLowerCase())) return 'w';
+  if (BRAND_G[p.brand]) return BRAND_G[p.brand];
+  return p.g === 'u' ? 'u' : 'unknown';
+}
+// gender setting: 'all' | 'm' | 'w'. Unisex and unknown show for everyone.
+export const shopFits = (p, gender) => { const g = productGender(p); return gender === 'all' || !gender || g === gender || g === 'u' || g === 'unknown'; };
+
+const FIT_RE = { slim: /\b(slim|skinny|tapered|fitted)\b/, relaxed: /\b(relaxed|oversized|loose|wide|baggy|boyfriend|boxy)\b/, regular: /\b(regular|classic|straight)\b/ };
 // Score one product against the closet, style settings, weather and stops. Higher = better.
-export function scoreProduct(p, { colourful = 0, favBright = false, styles, coldest = 12, rainMax = 0 }) {
+export function scoreProduct(p, { colourful = 0, favBright = false, styles, coldest = 12, rainMax = 0, fit = '', favColours = [] }) {
   let s = 0;
-  if (styles.has(p.style)) s += 3;
+  const name = (p.name || '').toLowerCase();
+  if (styles.has(p.style)) s += 3;                                   // formality boost
   if (p.color === 'neutral' || p.color === 'dark') s += 2;           // pairs with anything
   else if (favBright || colourful < 0.3) s += p.color === 'pattern' ? 1 : 2; // a neutral closet can take an accent
+  if (favColours.some(c => name.includes(c))) s += 2;                // favourite colour boost
+  if (FIT_RE[fit]?.test(name)) s += 1.5;                             // fit boost
+  else if (fit && Object.entries(FIT_RE).some(([f, re]) => f !== fit && f !== 'regular' && re.test(name))) s -= 1;
   if (p.cat === 'outerwear' || p.cat === 'top') {
     const want = coldest < 5 ? 3 : coldest < 15 ? 2 : 1;
     s += Math.max(0, 2 - Math.abs((p.warmth || 2) - want));
@@ -313,13 +336,13 @@ export function scoreProduct(p, { colourful = 0, favBright = false, styles, cold
 
 // -> [{key, label, gap?, secondHand, list}] ; sections with no products are dropped.
 export function recommend({ products, items = [], style = {}, gender = 'all', gaps = [], stops = [], coldest = 12, rainMax = 0, per = 12 }) {
-  const fits = p => gender === 'all' || p.g === gender || p.g === 'u' || p.g === 'unknown';
+  const fits = p => shopFits(p, gender);
   const coloured = items.filter(i => i.colours?.[0] && !NEUTRALS.has(i.colours[0].name)).length;
   const ctx = {
     colourful: items.length ? coloured / items.length : 0,
     favBright: (style.colours || []).some(c => !NEUTRALS.has(c)),
     styles: new Set([style.formality || 'casual', ...stops.map(s => STOP_TYPES[s.type] || 'casual')].flatMap(f => WANT_STYLE[f] || [])),
-    coldest, rainMax,
+    coldest, rainMax, fit: style.fit || '', favColours: style.colours || [],
   };
   const rank = list => {
     const seen = new Set();

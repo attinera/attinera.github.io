@@ -1,17 +1,38 @@
-# Deploying ATTINERA (free)
+# Deploying Attinera (free)
 
-## GitHub Pages
-1. Create a free account at github.com, then **New repository** (e.g. `attinera`). Free GitHub Pages needs the repo to be **Public**.
-2. On the repo page: **Add file → Upload files**. Drag in everything in this folder **except** the `backup-*` folders. Commit to `main`.
-3. **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main`, folder `/ (root)` → Save.**
-4. Wait 1–2 minutes. Your site is at `https://<your-username>.github.io/<repo>/`.
-5. Open that link on your phone. It is HTTPS, so the live camera viewfinder works. In Safari: Share → **Add to Home Screen**. In Chrome: menu → **Install app**.
+## Where it lives
+- Now: `https://jackbedard18-droid.github.io/attinera/` (repo `jackbedard18-droid/attinera`, Pages from `main` / root).
+- Planned: `https://attinera.github.io/` once the repo moves to the free **attinera** GitHub organization.
 
-To update: upload the changed files again (same names) and commit. Reload twice on the phone to pick up the new version.
+All paths in the site are relative, so the same files work at both addresses (domain root and `/attinera/`).
+`manifest.webmanifest` uses `start_url: "./#today"` and `scope: "./"`, which resolve correctly at either one.
 
-## Want the code private? Netlify Drop
-Go to https://app.netlify.com/drop, sign in free, and drag this whole folder onto the page. You get a free HTTPS link straight away; no public repo needed.
+## Moving to attinera.github.io
+1. Create the free organization **attinera** on GitHub (github.com → your avatar → Your organizations → New organization → Free).
+2. Transfer and rename the repo (needs `gh` signed in as the repo owner):
+   ```
+   gh api repos/jackbedard18-droid/attinera/transfer -f new_owner=attinera -f new_name=attinera.github.io
+   ```
+3. Point the local clone at the new home:
+   ```
+   git remote set-url origin https://github.com/attinera/attinera.github.io.git
+   ```
+4. Turn on Pages: repo **Settings → Pages → Deploy from a branch → `main` / `/ (root)` → Save**, or
+   ```
+   gh api -X POST repos/attinera/attinera.github.io/pages -f "source[branch]=main" -f "source[path]=/"
+   ```
+5. Wait 1–2 minutes, then open `https://attinera.github.io/`.
+6. Supabase: set **Authentication → URL Configuration → Site URL** to `https://attinera.github.io/` (see `SUPABASE-SETUP.md`).
+
+GitHub redirects the old repo URL to the new one, but **not** the old Pages address. Phones that installed the old
+address should open the new link and add it to the home screen again (data does not carry across addresses unless
+the user signs in, which syncs it).
+
+## Updating
+Commit and push to `main`. Pages rebuilds in about a minute. Reload twice on the phone to pick up the new version
+(the service worker cache version in `sw.js` changes with each release).
 
 ## Local
 `python run.py` serves the folder at http://localhost:8000 and prints a LAN address for your phone on the same Wi-Fi.
-On the LAN address (plain http) phones block the live camera, so **Take photo** opens the phone's own camera app instead. Everything else works.
+On the LAN address (plain http) phones block the live camera, so **Take photo** opens the phone's own camera app instead.
+Everything else works. `node js/check.mjs` runs the logic self-checks.

@@ -60,22 +60,21 @@ assert.equal(clothingVerdict(sc('a photo of food', 0.7)).ok, false);
 assert.equal(clothingVerdict(sc('a photo of a clothing item', 0.3)).ok, false, 'clothing wins but total under 0.5');
 console.log('gate ok');
 
-// photo cleanup: crop + fallback, lighting
-import { cropBox, lightingFix, unsharp } from './photo.js';
+// photo cutout: coverage gate, feather, trim box + fallback
+import { coverage, maskOk, feather, trimBox } from './photo.js';
 import { nextChoice, toggleHeart, streak } from './model.js';
 const W = 100, H = 80, mask = new Uint8Array(W * H);
 for (let y = 20; y < 60; y++) for (let x = 30; x < 50; x++) mask[y * W + x] = 255;
-let b = cropBox(mask, W, H);
+assert(Math.abs(coverage(mask) - 0.1) < 1e-9, '20x40 of 100x80 = 10%');
+assert(maskOk(mask) && !maskOk(new Uint8Array(W * H)) && !maskOk(new Uint8Array(W * H).fill(255)), 'coverage 10..95% only');
+let b = trimBox(mask, W, H);
 assert.deepEqual(b.item, { x0: 30, y0: 20, x1: 49, y1: 59 });
-assert(Math.abs(b.size - 40 * 1.16) < 1e-9 && Math.abs(b.x + b.size / 2 - 40) < 1e-9, 'square, 8% pad, centred');
-b = cropBox(null, W, H); // fallback: background removal failed
+assert(Math.abs(b.size - 40 * 1.12) < 1e-9 && Math.abs(b.x + b.size / 2 - 40) < 1e-9 && Math.abs(b.y + b.size / 2 - 40) < 1e-9, 'square, 6% pad, centred');
+b = trimBox(null, W, H); // fallback: background removal failed
 assert.deepEqual([b.x, b.y, b.size, b.item], [10, 0, 80, null]);
-assert.equal(cropBox(new Uint8Array(W * H), W, H).item, null, 'empty mask falls back too');
-const dull = new Uint8ClampedArray([100, 110, 120, 255, 140, 150, 160, 255]);
-lightingFix(dull);
-assert(dull[0] < 20 && dull[4] > 235, 'levels stretch dark->0, light->255');
-const flat = new Uint8ClampedArray(9 * 4).fill(128);
-assert.deepEqual([...unsharp(flat, 3, 3)], [...new Uint8ClampedArray(36).fill(128)], 'flat image unchanged');
+assert.equal(trimBox(new Uint8Array(W * H), W, H).item, null, 'empty mask falls back too');
+const f = feather(mask, W, H);
+assert(f[40 * W + 40] === 255 && f[40 * W + 29] === 85 && f[40 * W + 30] === 170 && f[0] === 0, 'feather softens only the 1px edge');
 // swipe-to-swap
 assert.deepEqual(nextChoice({}, 'top', 1, 3), { top: 1 });
 assert.deepEqual(nextChoice({ top: 0 }, 'top', -1, 3), { top: 2 }, 'swipe back wraps');
@@ -105,4 +104,36 @@ console.log('cleanup/swipe/hearts ok');
   assert(!r.some(s => s.key === 'bottom'), 'no bottoms in catalog -> hidden');
   assert(!gapSecondHand('socks') && !gapSecondHand('underwear') && gapSecondHand('boots'), 'second-hand rules');
   console.log('recommend ok');
+}
+
+// ---- shop: "Shop for" is a hard filter; fit + favourite colours only boost
+{
+  const { productGender, shopFits, scoreProduct } = await import('./model.js');
+  const gw = { name: "Women's Puffer", url: 'https://x.ca/p/1' }, gm = { name: 'Puffer', url: 'https://x.ca/mens/puffer-1' };
+  assert.equal(productGender(gw), 'w');
+  assert.equal(productGender(gm), 'm', 'gender from URL path');
+  assert.equal(productGender({ name: 'Midi skirt' }), 'w', 'womenswear cut');
+  assert.equal(productGender({ name: 'Crew tee', brand: 'Ardene' }), 'w', 'brand default');
+  assert.equal(productGender({ name: 'Crew tee', g: 'u' }), 'u');
+  assert(!shopFits(gw, 'm') && shopFits(gm, 'm') && shopFits({ name: 'Socks' }, 'm') && shopFits(gw, 'all'), 'men: no women\'s, unknown stays');
+  const base = { styles: new Set(['casual']) }, p = { name: 'Slim navy chino', style: 'casual', color: 'dark', cat: 'bottom' };
+  assert(scoreProduct(p, { ...base, fit: 'slim' }) > scoreProduct(p, base), 'fit boost');
+  assert(scoreProduct(p, { ...base, favColours: ['navy'] }) > scoreProduct(p, base), 'colour boost');
+  assert(scoreProduct(p, { ...base, fit: 'relaxed' }) < scoreProduct(p, base), 'wrong fit ranks lower');
+  console.log('shop filter ok');
+}
+
+// ---- sync: last write wins, soft delete, no blobs in rows
+{
+  globalThis.indexedDB ??= undefined; // db.js only opens IndexedDB on first use
+  const { decide, isDirty, toData, savedRows } = await import('./sync.js');
+  assert.equal(decide(null, 5, false), 'apply', 'new remote row');
+  assert.equal(decide({ updatedAt: 9 }, 5, false), 'skip', 'local newer wins');
+  assert.equal(decide({ updatedAt: 5 }, 5, false), 'skip', 'tie keeps local');
+  assert.equal(decide({ updatedAt: 1 }, 5, true), 'delete', 'remote soft delete');
+  assert(isDirty({ updatedAt: 3 }) && !isDirty({ updatedAt: 3, _syncedMs: 3 }));
+  assert.deepEqual(toData({ id: 'a', name: 'Tee', original: 'blob', thumb: 'blob', updatedAt: 1, _syncedMs: 1, _deleted: true }), { name: 'Tee' });
+  const rows = savedRows(['Gap'], { p1: { id: 'p1' } }, { 'store:Roots': 7 });
+  assert.deepEqual(rows.map(r => [r.id, r.on]), [['store:Gap', true], ['prod:p1', true], ['store:Roots', false]], 'unhearted store syncs as off');
+  console.log('sync ok');
 }

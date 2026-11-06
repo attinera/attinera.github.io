@@ -3,60 +3,66 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Privacy Policy · ATTINERA</title>
-<meta name="theme-color" content="#495867">
+<title>Privacy Policy · Attinera</title>
+<meta name="theme-color" content="#FFFFFF">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<link rel="icon" href="assets/attinera-logo-a.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/attinera-logo-v2.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body class="legal-body">
-<header class="topbar"><a href="index.html#today" class="brand"><img src="assets/attinera-logo-a.svg" alt="" width="34" height="34" style="border-radius:9px"><span class="brand-word">ATTINERA<i>.</i></span></a></header>
+<header class="legal-top"><a href="index.html#today"><img class="lockup" src="assets/attinera-logo-v2-lockup.svg" alt="Attinera home"></a></header>
 <main class="legal">
   <p class="draft">DRAFT — Legal review pending. Not legal advice. Prototype only.</p>
   <h1 class="h1">Privacy Policy</h1>
   <p class="sub">Last updated: November 6, 2026</p>
 
   <h2>The short version</h2>
-  <p>ATTINERA has no accounts. Your wardrobe, photos and plans stay in your browser on your device. We do not run a server that receives them.</p>
+  <p>You can use Attinera with or without an account.</p>
+  <ul>
+    <li><b>Without an account (guest):</b> your wardrobe, photos and plans stay in your browser on your device. Nothing is sent to us.</li>
+    <li><b>With an account:</b> your wardrobe data and photos are also stored in your private Attinera account so they sync between your devices.</li>
+  </ul>
 
   <h2>What is stored, and where</h2>
   <ul>
-    <li>All wardrobe data and photos are stored only in your browser (IndexedDB) on your device.</li>
-    <li>Settings such as your city, units, wear limits and saved stores are stored the same way.</li>
-    <li>Nothing is synced between devices. Clearing your browser data deletes it.</li>
+    <li><b>On your device:</b> all wardrobe data, photos and settings are kept in your browser (IndexedDB), with or without an account. This keeps the app fast and working offline.</li>
+    <li><b>In your account (only if you create one):</b> your email address, your clothing items and their details, storage locations, outfits and plans, settings, saved stores and products, and your clothing photos (the cutout, the original and a small thumbnail).</li>
+    <li>Account data is stored with our hosting provider, <a href="https://supabase.com/" target="_blank" rel="noopener">Supabase</a>, in the data region chosen for the Attinera project [region to be confirmed]. Photos are kept in a private storage bucket. Database rules (row-level security) and storage rules make your rows and photos readable and writable only by your signed-in account.</li>
+    <li>Signing in uses your email and a password, or a one-time login link sent to your email.</li>
   </ul>
 
   <h2>Photo analysis</h2>
-  <p>Clothing photos are analyzed on your device by AI models that run in your browser: one tags the item, and one removes the background and tidies the lighting. Background removal happens entirely on your device. Your photos are never uploaded, to ATTINERA or anyone else.</p>
-  <p>ATTINERA keeps both the cleaned photo and your original photo on your device, so you can switch back with "Show original".</p>
-  <p>The AI model files are downloaded once from a public content delivery network (jsDelivr and Hugging Face) and then cached by your browser. Those services see a normal download request (such as your IP address), not your photos.</p>
+  <p>Clothing photos are analyzed on your device by AI models that run in your browser: one checks it is clothing and tags it, and one removes the background. This processing always happens on your device, with or without an account. Without an account your photos are never uploaded. With an account, the finished photos are uploaded to your private account storage so your other devices can show them.</p>
+  <p>Attinera keeps both the cutout and your original photo, so you can choose which one to show.</p>
+  <p>The AI model files are downloaded once from public content delivery networks (jsDelivr and Hugging Face) and then cached by your browser. Those services see a normal download request (such as your IP address), not your photos.</p>
 
   <h2>Third-party services</h2>
   <ul>
     <li><b>Weather:</b> forecast requests send an approximate location (the coordinates of your chosen city, or of your device rounded to about 1 km) to <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>. City search sends the text you type to Open-Meteo's geocoding service.</li>
+    <li><b>Accounts and sync:</b> Supabase (see above), only if you create an account.</li>
     <li><b>Fonts:</b> the Inter typeface is loaded from Google Fonts, which sees a normal font request (such as your IP address).</li>
-    <li><b>Store logos:</b> store icons are requested from Google's favicon service, which sees a normal image request.</li>
+    <li><b>Store logos</b> are served from Attinera itself. <b>Product images</b> load from the retailer's servers.</li>
     <li><b>Store and product links</b> open the retailer's own website, which has its own privacy policy.</li>
   </ul>
 
   <h2>Affiliate links (future)</h2>
   <p>In the future, some shop links may be affiliate links. If so, we may earn a commission at no extra cost to you, and this will be clearly disclosed.</p>
 
-  <h2>Export or erase your data</h2>
-  <p>Open the <b>Me</b> tab. <b>Export</b> downloads one file with everything, including photos. <b>Erase all data</b> deletes everything from this browser. You can also clear site data in your browser settings.</p>
+  <h2>Export or delete your data</h2>
+  <p>Open the <b>Me</b> tab, then <b>Your data</b>. <b>Export</b> downloads one file with everything, including photos. <b>Delete all clothes</b> removes every item and photo. As a guest, <b>Erase everything</b> deletes all data from this browser. With an account, <b>Delete my account</b> deletes your account, every synced item and every photo from our servers and this device.</p>
 
   <h2>Children's privacy</h2>
   <p>[Placeholder: section to be completed after legal review.]</p>
 
   <h2>Canadian privacy law (PIPEDA)</h2>
-  <p>[Placeholder: how ATTINERA meets the Personal Information Protection and Electronic Documents Act, to be completed after legal review.]</p>
+  <p>[Placeholder: how Attinera meets the Personal Information Protection and Electronic Documents Act, to be completed after legal review.]</p>
 
   <h2>Contact</h2>
   <p>[email to be added]</p>
-  <p><a href="index.html#today">← Back to ATTINERA</a> · <a href="terms.html">Terms</a></p>
+  <p><a href="index.html#today">← Back to Attinera</a> · <a href="terms.html">Terms</a></p>
 </main>
-<footer class="foot">© 2026 ATTINERA</footer>
+<footer class="foot">© 2026 Attinera</footer>
 </body>
 </html>

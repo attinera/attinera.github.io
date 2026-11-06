@@ -169,7 +169,7 @@ if __name__ == '__main__':
     port = 8000
     server = http.server.ThreadingHTTPServer(('0.0.0.0', port), functools.partial(Handler, directory=HERE))
     ip = lan_ip()
-    print(f'ATTINERA running at  http://localhost:{port}')
+    print(f'Attinera running at  http://localhost:{port}')
     if ip: print(f'On your phone (same Wi-Fi):  http://{ip}:{port}')
     print('Ctrl+C to stop')
     if '--no-browser' not in sys.argv: webbrowser.open(f'http://localhost:{port}')

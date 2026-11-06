@@ -3,39 +3,33 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ATTINERA</title>
-<meta name="description" content="ATTINERA: phone-first wardrobe and daily-readiness planner. Dress for the day ahead.">
-<meta name="theme-color" content="#495867">
+<title>Attinera</title>
+<meta name="description" content="Attinera: phone-first wardrobe and daily-readiness planner. Dress for the day ahead.">
+<meta name="theme-color" content="#F7F7FF">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="ATTINERA">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Attinera">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="assets/attinera-logo-a.svg" type="image/svg+xml">
+<link rel="icon" href="assets/attinera-logo-v2.svg" type="image/svg+xml">
+<link rel="icon" href="assets/icon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-<header class="topbar">
-  <button class="brand" id="brand" type="button" aria-label="ATTINERA. Tap to replay the logo">
-    <span class="brand-mark"></span><span class="brand-word">ATTINERA<i>.</i></span>
-  </button>
-</header>
-
 <nav id="tabs" class="tabs" aria-label="Main"></nav>
 
-<div class="clip"><main id="view" tabindex="-1"><div class="skel-band"></div><div class="pad"><div class="skel"></div><div class="skel"></div></div></main></div>
+<div class="clip"><main id="view" tabindex="-1"><div class="pad"><div class="skel tall"></div><div class="skel"></div><div class="skel"></div></div></main></div>
 
-<button id="fab" class="fab" type="button" aria-label="Add item"></button>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script>
   // ES modules don't load from file:// in most browsers.
   if (location.protocol === 'file:') document.getElementById('view').innerHTML =
-    '<p class="pad">ATTINERA needs a tiny local server. In this folder run <code>python run.py</code>, then open <b>http://localhost:8000</b>.</p>';
+    '<p class="pad">Attinera needs a tiny local server. In this folder run <code>python run.py</code>, then open <b>http://localhost:8000</b>.</p>';
 </script>
 <script type="module" src="js/app.js"></script>
 </body>

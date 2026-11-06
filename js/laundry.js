@@ -1,10 +1,10 @@
-// Laundry tab: hamper (swipe right = into suggested load, left = back clean) -> washing -> drying -> put-away by location.
+// Laundry tab: hamper (swipe right = wash now, swipe left = Delete) -> washing -> drying -> put-away by location.
 import * as db from './db.js';
 import { WASH_GROUPS, DEFAULT_LOW_SUPPLY, CAT_LABEL } from './model.js';
-import { icon, esc, $, $$, sheet, toast, blobUrl, swipe, haptic, locIcon, loader, cap, countSpan } from './ui.js';
-import { getLocations, itemName } from './closet.js';
+import { icon, esc, $, $$, sheet, toast, blobUrl, swipeRow, swRow, haptic, locIcon, loader, cap, header } from './ui.js';
+import { getLocations, itemName, deleteItems } from './closet.js';
 
-const setStatus = (items, status, extra = {}) => db.putMany('items', items.map(i => ({ ...i, status, ...extra, updatedAt: Date.now() })));
+const setStatus = (items, status, extra = {}) => db.putMany('items', items.map(i => ({ ...i, status, ...extra })));
 const LOW_NAMES = { socks: ['pair of socks', 'pairs of socks'], underwear: ['pair of underwear', 'pairs of underwear'] };
 const thumbs = list => `<div class="row" style="margin-top:12px">${list.slice(0, 8).map(i => `<img class="mini" src="${blobUrl(i)}" alt="${esc(itemName(i))}">`).join('')}${list.length > 8 ? `<span class="sub">+${list.length - 8}</span>` : ''}</div>`;
 // Washer with a spinning drum (drum = .drum, transform only).
@@ -30,8 +30,7 @@ export async function renderLaundry(main) {
   const warn = await lowSupply(items);
   const groups = Object.keys(WASH_GROUPS).filter(g => g !== 'no-wash').map(g => [g, hamper.filter(i => i.washGroup === g)]).filter(g => g[1].length);
   const idle = !hamper.length && !washing.length && !drying.length && !worn.length;
-  main.innerHTML = `<header class="band"><div class="band-row"><div><h1>Laundry</h1><p>${countSpan(hamper.length)} in hamper</p></div>
-      <span class="basket" aria-hidden="true">${icon('basket', 30)}${hamper.length ? `<span class="badge">${hamper.length}</span>` : ''}</span></div></header>
+  main.innerHTML = header('Laundry', { sub: `${hamper.length} in hamper · ${washing.length + drying.length} in progress` }) + `
     <div class="content">
     ${warn.length ? `<div class="card alert">${icon('info-circle', 22)}<div>${warn.map(w => `<b>${esc(w)}</b>`).join('<br>')}<p class="sub">Run a load soon.</p></div></div>` : ''}
     ${washing.length ? `<h2 class="h2">Washing</h2><div class="card"><div class="row">${washer}<div><b>${washing.length} in the wash</b><p class="sub">Move them when the cycle ends.</p></div></div>${thumbs(washing)}
@@ -41,15 +40,16 @@ export async function renderLaundry(main) {
     ${groups.length ? '<h2 class="h2">Loads</h2>' : ''}
     <div data-stagger>${groups.map(([g, list]) => `<div class="card"><div class="between"><span><b>${WASH_GROUPS[g]}</b> <span class="sub">${list.length}</span></span>
       <button class="btn primary sm" data-start="${g}">Start load</button></div>${thumbs(list)}</div>`).join('')}</div>
-    ${hamper.length ? `<h2 class="h2">In the hamper</h2><p class="hint-swipe">Swipe right to wash, left if it's still clean.</p>
-      <div class="list-rows" style="margin-top:8px">${hamper.map(i => `<div class="load-row" data-id="${esc(i.id)}" style="padding:0 16px">
+    ${hamper.length ? `<h2 class="h2">In the hamper</h2><p class="hint-swipe">Swipe right to wash · swipe left to delete</p>
+      <div class="list-rows" style="margin-top:8px">${hamper.map(i => swRow(`<div class="load-row">
         <img class="mini" src="${blobUrl(i)}" alt=""><span>${esc(cap(itemName(i)))}<br><span class="sub small">${esc(WASH_GROUPS[i.washGroup] || '')}</span></span>
-        <button class="icon-btn bare" data-clean="${esc(i.id)}" aria-label="Still clean">${icon('arrow-left', 20)}</button>
-        <button class="icon-btn bare" data-wash="${esc(i.id)}" aria-label="Wash now">${icon('wash-machine', 20)}</button></div>`).join('')}</div>` : ''}
+        <button class="icon-btn bare" data-clean="${esc(i.id)}" aria-label="Still clean, put back">${icon('arrow-back-up', 20)}</button>
+        <button class="icon-btn bare" data-wash="${esc(i.id)}" aria-label="Wash now">${icon('wash-machine', 20)}</button></div>`, `Delete ${cap(itemName(i))}`)
+        .replace('<div class="sw-row', `<div data-id="${esc(i.id)}" class="sw-row`)).join('')}</div>` : ''}
     ${worn.length ? `<h2 class="h2">Worn, not put back</h2><div class="card eod">${worn.map(i => `
       <div class="between"><span class="row"><img class="mini" src="${blobUrl(i)}" alt="">${esc(cap(itemName(i)))}</span>
       <span class="row"><button class="btn ghost sm" data-back="${esc(i.id)}">Put back</button><button class="btn ghost sm" data-ham="${esc(i.id)}">Hamper</button></span></div>`).join('')}</div>` : ''}
-    ${idle ? `<div class="empty">${loader('All clean')}<p>All caught up. Items land here when they hit their wear limit.</p></div>` : ''}
+    ${idle ? `<div class="empty">${loader('All clean')}<h2 class="h2">All caught up</h2><p>Items land here when they hit their wear limit.</p></div>` : ''}
     </div>`;
 
   const one = async (id, status, msg) => {
@@ -58,7 +58,10 @@ export async function renderLaundry(main) {
     toast(msg, { undo: async () => { await db.put('items', it); renderLaundry(main); } });
     renderLaundry(main);
   };
-  for (const row of $$('.load-row', main)) swipe(row, dir => one(row.dataset.id, dir > 0 ? 'washing' : 'clean', dir > 0 ? 'Added to load' : 'Back in the closet'));
+  for (const row of $$('.sw-row[data-id]', main)) {
+    const it = items.find(i => i.id === row.dataset.id);
+    swipeRow(row, { onRight: () => one(it.id, 'washing', 'Added to load'), onDelete: () => deleteItems([it], () => renderLaundry(main)) });
+  }
 
   main.onclick = async e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -83,7 +86,7 @@ export async function putAway(main) {
     ${groups.map(([loc, list]) => `<div class="card putaway" style="margin-top:16px"><div class="row"><span class="home">${locIcon(loc.type)}</span><b>${esc(loc.name)}</b><span class="sub">${list.length}</span></div>
       ${list.map(i => `<label class="check"><input type="checkbox" data-put="${esc(i.id)}"><img class="mini" src="${blobUrl(i)}" alt="">${esc(cap(itemName(i)))}</label>`).join('')}</div>`).join('')}
     <div class="actions"><button class="btn coral big wide" id="putAll">Put all away</button></div>`, { onClose: () => main && renderLaundry(main) });
-  const clean = ids => db.putMany('items', drying.filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'clean', wearCount: 0, updatedAt: Date.now() })));
+  const clean = ids => db.putMany('items', drying.filter(i => ids.includes(i.id)).map(i => ({ ...i, status: 'clean', wearCount: 0 })));
   p.addEventListener('change', e => { const id = e.target.dataset.put; if (id && e.target.checked) { clean([id]); haptic(); e.target.closest('.check').classList.add('gone'); } });
   $('#putAll', p).onclick = async () => {
     await clean(drying.map(i => i.id)); haptic();

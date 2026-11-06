@@ -2,6 +2,7 @@
 import * as db from './db.js';
 import { geocode, getCity } from './weather.js';
 import { icon, esc, $, loader, logoSvg, replayLogo, haptic } from './ui.js';
+import { accountsOn } from './sync.js';
 import { takePhoto, pickGallery } from './closet.js';
 
 export async function maybeOnboard(onDone) {
@@ -14,14 +15,14 @@ export async function maybeOnboard(onDone) {
     let step = 0;
     const finish = async () => { await db.setSetting('onboarded', true); el.remove(); removeEventListener('attinera:added', draw); onDone?.(); resolve(); };
     const next = () => { step++; haptic(); draw(); };
-    const head = (title, sub) => `<header class="band"><button class="skip" data-skip>${step < 2 ? 'Skip' : ''}</button>
-      <div class="brand-mark ob-logo" style="width:48px;margin-bottom:16px">${logoSvg('play')}</div>
+    const head = (title, sub) => `<header class="ob-head">${step < 2 ? '<button class="skip" data-skip>Skip</button>' : ''}
+      <img class="lockup" src="assets/attinera-logo-v2-lockup.svg" alt="Attinera">
       <h1>${title}</h1><p>${sub}</p><div class="dots" aria-label="Step ${step + 1} of 3">${[0, 1, 2].map(i => `<i class="${i === step ? 'on' : ''}"></i>`).join('')}</div></header>`;
 
     async function draw() {
       if (step === 0) {
         const city = await getCity();
-        el.innerHTML = head('Welcome to ATTINERA', 'Dress for the day ahead.') + `<div class="ob-body view-in">
+        el.innerHTML = head('Welcome to Attinera', 'Dress for the day ahead.') + `<div class="ob-body view-in">
           <h2 class="h2">Where are you?</h2><p class="sub">For your daily weather.</p>
           <form id="obCity" class="row" style="margin-top:16px"><label class="search" style="flex:1">${icon('search', 20)}<input name="q" type="search" placeholder="Search a city" aria-label="City"></label><button class="btn primary">Search</button></form>
           <div id="obRes" class="chips" style="margin-top:12px"></div>
@@ -42,7 +43,7 @@ export async function maybeOnboard(onDone) {
         }, () => {}, { timeout: 10000 });
       } else if (step === 1) {
         const n = (await db.all('items')).length;
-        el.innerHTML = head('Add your first 3 pieces', 'Snap a photo. ATTINERA cleans it up and tags it.') + `<div class="ob-body view-in">
+        el.innerHTML = head('Add your first 3 pieces', 'Snap a photo. Attinera cuts it out and tags it.') + `<div class="ob-body view-in">
           <p class="h2" style="margin-top:0"><span>${Math.min(n, 3)}</span> of 3 added</p>
           <div class="addopts"><button class="btn" id="obCam">${icon('camera', 28)}<span>Take photo</span></button>
             <button class="btn" id="obGal">${icon('photo', 28)}<span>Choose from gallery</span></button></div>
@@ -52,15 +53,18 @@ export async function maybeOnboard(onDone) {
         if (n >= 3) setTimeout(next, 600);
       } else {
         el.innerHTML = head('Your closet is ready.', 'Check Today each morning for an outfit that fits the weather.') + `<div class="ob-body view-in" style="text-align:center">
-          <div class="loader" style="width:96px;height:96px;margin:24px auto">${logoSvg('swinging')}</div>
-          <button class="btn coral big wide" data-done>Start</button></div>`;
+          <div class="loader ob-loader" data-logo>${logoSvg('play')}</div>
+          <button class="btn coral big wide" data-done>Start</button>
+          ${accountsOn ? `<p class="sub" style="margin-top:24px">Want your closet on your laptop too?</p>
+          <div class="actions center-row"><button class="btn ghost" data-account="signin">Sign in</button><button class="btn ghost" data-account="signup">Create account</button></div>` : ''}</div>`;
       }
-      replayLogo($('.ob-logo', el));
+      replayLogo($('.ob-loader', el));
     }
     el.onclick = e => {
       if (e.target.closest('[data-skip]')) step < 2 ? next() : finish();
       else if (e.target.closest('[data-next]')) next();
       else if (e.target.closest('[data-done]')) finish();
+      else if (e.target.closest('[data-account]')) { const m = e.target.closest('[data-account]').dataset.account; finish().then(() => { location.hash = '#me/account?mode=' + m; }); }
     };
     addEventListener('attinera:added', draw);
     draw();

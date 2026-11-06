@@ -1,8 +1,8 @@
-// App shell: hash router with view/sub-page transitions, slate tab bar with gliding indicator, + button,
-// first-launch onboarding, one-time migration from the old prototype, background photo polishing.
+// App shell: hash router with view transitions, bottom tab bar (phone) / sidebar (laptop) with the centre + button,
+// first-launch onboarding, one-time migrations, photo re-processing, optional account sync.
 import * as db from './db.js';
-import { icon, $, $$, setUnits, logoSvg, replayLogo, countUp, stagger, toast, blobUrl } from './ui.js';
-import { resize, cleanPhoto } from './ai.js';
+import { icon, $, $$, setUnits, logoSvg, replayLogo, countUp, stagger, toast, confirmSheet, sheet, closeSheet } from './ui.js';
+import { resize, cleanPhoto, makeThumb } from './ai.js';
 import { defaultWashGroup } from './model.js';
 import { renderToday } from './today.js';
 import { renderCloset, renderItem, openAdd } from './closet.js';
@@ -10,22 +10,21 @@ import { renderLaundry } from './laundry.js';
 import { renderShop } from './shop.js';
 import { renderMe } from './settings.js';
 import { maybeOnboard } from './onboarding.js';
+import { initSync, accountsOn, setPassword } from './sync.js';
 
 const TABS = [['today', 'Today'], ['closet', 'Closet'], ['laundry', 'Laundry'], ['shop', 'Shop'], ['me', 'Me']];
 const main = $('#view');
 
-$('.brand-mark').innerHTML = logoSvg();
+$('#tabs').innerHTML = `<button class="brand side-only" id="brand" type="button" aria-label="Attinera. Tap to replay the logo">
+    <span class="brand-mark">${logoSvg()}</span><span class="brand-word">Attinera</span></button>
+  <button id="fab" class="fab" type="button" aria-label="Add clothes">${icon('plus', 28)}<span class="side-only">Add clothes</span></button>` +
+  TABS.map(([k, l]) => `<a href="#${k}" data-tab="${k}" class="tab-${k}">${icon(k, 24)}<span>${l}</span></a>`).join('');
 $('#brand').onclick = () => { replayLogo($('#brand')); if (location.hash && location.hash !== '#today') location.hash = '#today'; };
-$('#tabs').innerHTML = '<span class="tab-ind" aria-hidden="true"></span>' +
-  TABS.map(([k, l]) => `<a href="#${k}" data-tab="${k}">${icon(k)}<span>${l}</span></a>`).join('');
-$('#fab').innerHTML = icon('plus', 30);
 $('#fab').onclick = () => document.body.classList.contains('fab-open') ? $('.sheet-wrap [data-close]')?.click() : openAdd();
-document.addEventListener('click', e => { if (e.target.closest('[data-add]')) openAdd(); });
-// Store favicon failed -> show lettered fallback tile.
-document.addEventListener('error', e => {
-  const img = e.target;
-  if (img.tagName === 'IMG' && img.closest('.logo')) { img.hidden = true; img.nextElementSibling.hidden = false; }
-}, true);
+document.addEventListener('click', e => {
+  if (e.target.closest('[data-add]')) openAdd();
+  const logo = e.target.closest('[data-logo]'); if (logo) replayLogo(logo);
+});
 
 let lastTab = null;
 async function route() {
@@ -33,23 +32,22 @@ async function route() {
   const [tab, id] = path.split('/');
   const active = tab === 'item' ? 'closet' : TABS.some(t => t[0] === tab) ? tab : 'today';
   const isSub = tab === 'item' || (tab === 'me' && id);
-  $('#tabs').style.setProperty('--idx', TABS.findIndex(t => t[0] === active));
   $$('#tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.tab === active ? 'page' : 'false'));
   main.onclick = main.onchange = main.oninput = main.onsubmit = null;
   main.ontouchstart = main.ontouchmove = main.ontouchend = null;
-  $('.infobar')?.remove();
+  $('.selbar')?.remove(); document.body.classList.remove('selecting');
   try {
     if (tab === 'closet') await renderCloset(main);
     else if (tab === 'item') await renderItem(main, decodeURIComponent(id || ''));
     else if (tab === 'laundry') await renderLaundry(main);
     else if (tab === 'shop') await renderShop(main, new URLSearchParams(query));
-    else if (tab === 'me') await renderMe(main, id);
+    else if (tab === 'me') await renderMe(main, id, new URLSearchParams(query));
     else await renderToday(main);
   } catch (e) {
     console.error(e);
     main.innerHTML = '<div class="pad"><div class="card alert"><b>Something went wrong loading this page.</b></div></div>';
   }
-  if (!(tab === 'me' && !id)) main.insertAdjacentHTML('beforeend', '<footer class="foot">© 2026 ATTINERA</footer>'); // Me has its own
+  main.insertAdjacentHTML('beforeend', '<footer class="foot">© 2026 Attinera</footer>');
   const cls = isSub ? 'view-sub' : active !== lastTab ? 'view-in' : '';
   main.classList.remove('view-in', 'view-sub'); void main.offsetWidth;
   if (cls) main.classList.add(cls);
@@ -75,7 +73,7 @@ async function migrate() {
       const blob = await (await fetch(old.img)).blob();
       const category = CAT[old.cat] || 'tops', now = Date.now();
       await db.put('items', {
-        id: 'old-' + old.id, createdAt: now, updatedAt: now, photo: await resize(blob, 1024), thumb: await resize(blob, 256),
+        id: 'old-' + old.id, createdAt: now, original: await resize(blob, 1024), thumb: await resize(blob, 256),
         category, subtype: old.cat === 'dress' ? 'dress' : '', gender: 'unisex', formality: FORM[old.style] || 'casual', colours: [],
         warmth: { 1: 1, 2: 3, 3: 5 }[old.warmth] || 3, seasons: [], waterproof: !!old.wp, status: 'clean', wearCount: 0, wearLimit: null,
         homeLocationId: (category === 'shoes' ? locs.find(l => l.type === 'rack') : locs[0])?.id, washGroup: defaultWashGroup(category),
@@ -86,20 +84,41 @@ async function migrate() {
   await db.setSetting('migratedV1', true);
 }
 
-// Run the photo cleanup once on items saved before it existed (or imported), quietly in the background.
-async function polishExisting() {
-  const todo = (await db.all('items')).filter(i => !i.cleaned && (i.original || i.photo));
+// Once: re-run every older photo through the new cutout pipeline (replaces the old "enhanced" pictures).
+async function reprocessPhotos() {
+  const todo = (await db.all('items')).filter(i => i.pipeline !== 2 && (i.original || i.photo));
   if (!todo.length) return;
-  toast(`Polishing ${todo.length} photo${todo.length > 1 ? 's' : ''}…`);
+  let n = 0;
   for (const it of todo) {
+    toast(`Updating photos ${++n} of ${todo.length}…`);
     try {
       const r = await cleanPhoto(it.original || it.photo);
       const cur = await db.get('items', it.id); if (!cur) continue;
-      await db.put('items', { ...cur, original: r.original, photo: r.photo, thumb: r.thumb, cleaned: r.cleaned, updatedAt: Date.now() });
-    } catch (e) { console.warn('Polish skipped', e); }
+      const { photo, cleaned, ...rest } = cur;
+      const pick = r.cutout ? 'cutout' : 'original';
+      await db.put('items', { ...rest, original: r.original, cutout: r.cutout, pick, thumb: await makeThumb(r.cutout || r.original),
+        pipeline: 2, photoRev: Date.now() });
+    } catch (e) { console.warn('Photo update skipped', e); }
   }
-  toast('Photos polished');
-  if (/^#(closet|today|item|laundry)?/.test(location.hash)) route();
+  toast('Photos updated');
+  if (/^#(closet|today|item|laundry)?/.test(location.hash) || !location.hash) route();
+}
+
+async function onMerge(n) {
+  return confirmSheet(`Add your ${n} guest item${n === 1 ? '' : 's'} to your account?`,
+    'They sync to your other devices. If you say no, they are removed from this device and your account’s closet loads instead.',
+    `Add ${n} item${n === 1 ? '' : 's'}`, { danger: false });
+}
+function onRecovery() {
+  const p = sheet(`<h2 class="h2">Set a new password</h2><form id="newPw" class="stack">
+    <label class="field">New password<input type="password" name="pw" minlength="8" required autocomplete="new-password"></label>
+    <button class="btn primary big wide">Save password</button></form>`);
+  $('#newPw', p).onsubmit = async e => {
+    e.preventDefault();
+    const { error } = await setPassword(new FormData(e.target).get('pw'));
+    if (error) return toast(error.message);
+    closeSheet(); toast('Password updated');
+  };
 }
 
 (async () => {
@@ -107,8 +126,13 @@ async function polishExisting() {
   setUnits(await db.getSetting('units', 'C'));
   await route();
   replayLogo($('#brand'));
+  if (accountsOn) {
+    addEventListener('attinera:pulled', async () => { setUnits(await db.getSetting('units', 'C')); route(); });
+    addEventListener('attinera:account', () => route());
+    initSync({ onMerge, onRecovery }).catch(e => console.warn('Sync unavailable', e));
+  }
   await maybeOnboard(route);
-  setTimeout(() => polishExisting().catch(e => console.warn(e)), 2500);
+  setTimeout(() => reprocessPhotos().catch(e => console.warn(e)), 2500);
 })();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(e => console.warn('SW', e));

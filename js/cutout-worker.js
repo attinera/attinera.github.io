@@ -6,7 +6,7 @@ import { AutoModel, AutoProcessor, RawImage, env } from 'https://cdn.jsdelivr.ne
 env.allowLocalModels = false;
 let ready = null;
 const progress = e => postMessage({ type: 'progress', file: e.file, loaded: e.loaded, total: e.total });
-// WebGPU when the browser has it (seconds); WASM fallback (much slower, may hit the 15 s limit -> basic cleanup).
+// WebGPU when the browser has it (seconds); WASM fallback (slower, may hit the 20 s limit -> original photo kept).
 const model = async () => {
   const opts = { config: { model_type: 'custom' }, progress_callback: progress };
   if (self.navigator?.gpu && await navigator.gpu.requestAdapter().catch(() => null)) {
@@ -28,10 +28,11 @@ const load = () => ready ??= Promise.all([
 onmessage = async ({ data }) => {
   try {
     const [model, processor] = await load();
-    postMessage({ type: 'start', id: data.id }); // model loaded: the 15 s speed limit starts now
+    postMessage({ type: 'start', id: data.id }); // model loaded: the 20 s speed limit starts now
     const image = await RawImage.fromBlob(data.blob);
     const { pixel_values } = await processor(image);
     const { output } = await model({ input: pixel_values });
+    // Soft alpha (0-255), resized to the photo's full size. Never thresholded.
     const mask = await RawImage.fromTensor(output[0].mul(255).to('uint8')).resize(image.width, image.height);
     postMessage({ type: 'result', id: data.id, mask: mask.data, width: mask.width, height: mask.height }, [mask.data.buffer]);
   } catch (err) {

@@ -1,4 +1,4 @@
-// Shared UI: Tabler icons, animated logo, sheets, toasts with Undo, motion helpers (transform/opacity only).
+// Shared UI: Tabler icons, animated logo, headers, sheets, toasts with Undo, swipe/long-press, motion helpers.
 import { TABLER } from './icons.js';
 
 const ALIAS = { today: 'sun', closet: 'hanger', laundry: 'wash-machine', shop: 'shopping-bag', me: 'user', image: 'photo', back: 'arrow-left', shuffle: 'arrows-shuffle', swap: 'arrows-exchange', pin: 'map-pin', drop: 'droplet' };
@@ -9,13 +9,14 @@ export const icon = (name, size = 24, cls = '') =>
 export const LOC_ICON = { rail: 'hanger', drawer: 'box', shelf: 'stack-2', rack: 'shoe', hook: 'anchor', bin: 'archive', hamper: 'basket' };
 export const locIcon = (type, size = 20) => icon(LOC_ICON[type] || 'map-pin', size);
 
-// The ATTINERA hanger. .swing on the <g> = damped swing around the hook; .bar = coral crossbar redraw.
-export const logoSvg = (cls = '', tile = true) => `<svg class="logo-svg ${cls}" viewBox="0 0 120 120" aria-hidden="true">
-  ${tile ? '<rect width="120" height="120" rx="28" fill="#F7F7FF"/>' : ''}
-  <g class="hang"><path d="M60 40 V33 C60 26 69 24 69 17 C69 11 64 8 60 8 C55 8 51 11 51 16" fill="none" stroke="#495867" stroke-width="7" stroke-linecap="round"/>
-  <path d="M60 40 L22 98 M60 40 L98 98" fill="none" stroke="#577399" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-  <path class="bar" pathLength="1" d="M36 76 H84" fill="none" stroke="#FE5F55" stroke-width="10" stroke-linecap="round"/></g></svg>`;
-export const loader = (label = 'Loading') => `<span class="loader" role="status" aria-label="${label}">${logoSvg('swinging', false)}</span>`;
+// The Attinera hanger-A (assets/attinera-logo-v2.svg). .hang swings around the hook; .bar = coral foot redraw.
+export const logoSvg = (cls = '') => `<svg class="logo-svg ${cls}" viewBox="0 0 120 120" aria-hidden="true"><g class="hang">
+  <path d="M60 42 V34 C60 27 70 25 70 17 C70 10 65 6 59 6 C53 6 49 10 49 15" fill="none" stroke="#495867" stroke-width="9" stroke-linecap="round"/>
+  <polygon points="60,50 46,76 74,76" fill="#577399"/>
+  <path d="M60 44 L26 100" fill="none" stroke="#495867" stroke-width="18" stroke-linecap="round"/>
+  <path d="M60 44 L84 84" fill="none" stroke="#BDD5EA" stroke-width="18" stroke-linecap="round"/>
+  <path class="bar" pathLength="1" d="M86 87 L94 100" fill="none" stroke="#FE5F55" stroke-width="18" stroke-linecap="round"/></g></svg>`;
+export const loader = (label = 'Loading') => `<span class="loader" role="status" aria-label="${label}">${logoSvg('swinging')}</span>`;
 export function replayLogo(el) {
   const svg = el?.querySelector('.logo-svg'); if (!svg) return;
   svg.classList.remove('play'); void svg.getBoundingClientRect(); svg.classList.add('play');
@@ -33,8 +34,8 @@ let units = 'C';
 export const setUnits = u => { units = u; };
 export const getUnits = () => units;
 export const tempVal = c => units === 'F' ? Math.round(c * 9 / 5 + 32) : Math.round(c);
-export const temp = c => c == null || isNaN(c) ? '--°' : tempVal(c) + '°' + units;
-// Number that counts up on load: <span data-count="13" data-suffix="°C">13°C</span>
+export const temp = c => c == null || isNaN(c) ? '--°' : tempVal(c) + '°';
+// Number that counts up on load: <span data-count="13" data-suffix="°">13°</span>
 export const countSpan = (n, suffix = '') => `<span data-count="${esc(n)}" data-suffix="${esc(suffix)}">${esc(n)}${esc(suffix)}</span>`;
 export function countUp(root = document) {
   if (reduced()) return;
@@ -50,29 +51,33 @@ export function countUp(root = document) {
     requestAnimationFrame(step);
   }
 }
-// Stagger children of [data-stagger] (30-40 ms each). Call again to re-stagger after filtering.
+// Stagger children of [data-stagger] (35 ms each). Call again to re-stagger after filtering.
 export function stagger(root = document) {
   for (const box of $$('[data-stagger]', root)) {
     [...box.children].forEach((c, i) => { c.style.setProperty('--i', Math.min(i, 18)); c.classList.remove('in'); void c.offsetWidth; c.classList.add('in'); });
   }
 }
 
-export const band = (title, sub = '', right = '') =>
-  `<header class="band"><div class="band-row"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right}</div></header>`;
+// Compact sticky header: title left, at most one action on the right. back = [href, label] for sub-pages.
+export const header = (title, { right = '', back = null, sub = '' } = {}) => `<header class="hdr">
+  ${back ? `<a class="hdr-back" href="${esc(back[0])}" aria-label="Back to ${esc(back[1])}">${icon('back', 22)}</a>` : ''}
+  <div class="hdr-title"><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${right}</header>`;
 
 export function toast(msg, { undo } = {}) {
   const t = $('#toast');
   t.innerHTML = `<span>${esc(msg)}</span>${undo ? '<button type="button" class="undo">Undo</button>' : ''}`;
   t.hidden = false; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-  if (undo) $('.undo', t).onclick = async () => { t.hidden = true; await undo(); };
-  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, undo ? 5000 : 2600);
+  if (undo) $('.undo', t).onclick = async () => { t.hidden = true; clearTimeout(toast.t); await undo(); };
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, undo ? 6000 : 2600);
 }
 
 // Object URLs for photo Blobs, cached per item+version so lists don't leak.
+// 'photo' is the picked full-size picture: the cutout, or the original when the user chose it (or no cutout exists).
+export const photoOf = i => i?.pick === 'original' || !i?.cutout ? i?.original || i?.photo || i?.cutout : i.cutout;
 const urls = new Map();
 export function blobUrl(item, field = 'thumb') {
-  const b = item?.[field]; if (!b) return '';
-  const k = `${item.id}:${field}:${item.updatedAt}`;
+  const b = field === 'photo' ? photoOf(item) : item?.[field]; if (!b) return '';
+  const k = `${item.id}:${field}:${item.updatedAt}:${item.pick}`;
   if (!urls.has(k)) urls.set(k, URL.createObjectURL(b));
   return urls.get(k);
 }
@@ -82,11 +87,12 @@ export function sheet(html, { full = false, onClose, fab = false } = {}) {
   closeSheet(true);
   const wrap = document.createElement('div');
   wrap.className = 'sheet-wrap' + (full ? ' full' : '');
-  wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><button class="sheet-x" data-close aria-label="Close">${icon('x')}</button>${html}</div>`;
+  wrap.innerHTML = `<div class="sheet" role="dialog" aria-modal="true"><span class="grab" aria-hidden="true"></span><button class="sheet-x" data-close aria-label="Close">${icon('x')}</button>${html}</div>`;
   wrap.addEventListener('click', e => { if (e.target === wrap || e.target.closest('[data-close]')) closeSheet(); });
   wrap._onClose = onClose;
   document.body.append(wrap);
   document.body.classList.toggle('fab-open', fab);
+  $('.sheet', wrap).focus?.();
   return $('.sheet', wrap);
 }
 export function closeSheet(instant = false) {
@@ -100,16 +106,16 @@ export function closeSheet(instant = false) {
 addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
 
 // Confirm sheet for destructive actions. Resolves true/false.
-export function confirmSheet(title, body, action) {
+export function confirmSheet(title, body, action, { danger = true } = {}) {
   return new Promise(res => {
-    const p = sheet(`<h2 class="h2">${esc(title)}</h2><p>${esc(body)}</p>
-      <div class="actions"><button class="btn coral wide" id="cfmYes">${esc(action)}</button><button class="btn ghost wide" data-close>Cancel</button></div>`,
+    const p = sheet(`<h2 class="h2">${esc(title)}</h2><p class="sub">${esc(body)}</p>
+      <div class="actions col"><button class="btn ${danger ? 'danger' : 'primary'} wide big" id="cfmYes">${esc(action)}</button><button class="btn ghost wide" data-close>Cancel</button></div>`,
     { onClose: () => res(false) });
     $('#cfmYes', p).onclick = () => { p.parentElement._onClose = null; closeSheet(); res(true); };
   });
 }
 
-// Horizontal swipe on an element (pointer events). dir: 1 = right, -1 = left.
+// Horizontal swipe on an element (pointer events). dir: 1 = right, -1 = left. Used to swap outfit tiles.
 export function swipe(el, onSwipe, threshold = 64) {
   let x0 = null, y0 = 0, dx = 0, locked = false;
   el.addEventListener('pointerdown', e => { if (e.button) return; x0 = e.clientX; y0 = e.clientY; dx = 0; locked = false; });
@@ -123,7 +129,6 @@ export function swipe(el, onSwipe, threshold = 64) {
     if (x0 == null) return;
     x0 = null; el.style.transition = '';
     if (locked && Math.abs(dx) >= threshold) {
-      el.dataset.swiped = '1'; setTimeout(() => delete el.dataset.swiped, 50);
       el.style.transform = `translateX(${Math.sign(dx) * 120}%)`; el.style.opacity = '0';
       setTimeout(() => onSwipe(Math.sign(dx)), 180);
     } else el.style.transform = '';
@@ -132,9 +137,68 @@ export function swipe(el, onSwipe, threshold = 64) {
   el.addEventListener('click', e => { if (locked && Math.abs(dx) > 8) { e.preventDefault(); e.stopPropagation(); } }, true);
 }
 
+// Swipe-to-delete row/card. Markup: <div class="sw-row"><button class="sw-del">…</button><div class="sw-face">…</div></div>.
+// Swipe left reveals the red Delete; a full swipe (past 60%) deletes at once. onRight (optional) = swipe right action.
+const REVEAL = 88;
+let openRow = null;
+const closeRow = () => { if (openRow) { openRow.style.transform = ''; openRow.closest('.sw-row')?.classList.remove('open'); openRow = null; } };
+document.addEventListener('pointerdown', e => { if (openRow && !e.target.closest('.sw-row.open')) closeRow(); }, true);
+export function swipeRow(row, { onDelete, onRight, enabled = () => true }) {
+  const face = $('.sw-face', row), del = $('.sw-del', row);
+  let x0 = null, y0 = 0, dx = 0, locked = false, base = 0;
+  const set = x => { face.style.transform = x ? `translateX(${x}px)` : ''; };
+  const kill = () => {
+    face.style.transition = ''; set(-row.offsetWidth - 20); row.classList.add('gone');
+    haptic(); setTimeout(onDelete, reduced() ? 0 : 200);
+  };
+  del.onclick = e => { e.stopPropagation(); kill(); };
+  face.addEventListener('pointerdown', e => {
+    if (e.button || !enabled()) return;
+    x0 = e.clientX; y0 = e.clientY; dx = 0; locked = false; base = openRow === face ? -REVEAL : 0;
+  });
+  face.addEventListener('pointermove', e => {
+    if (x0 == null) return;
+    dx = e.clientX - x0;
+    if (!locked && Math.abs(e.clientY - y0) > Math.abs(dx) && Math.abs(e.clientY - y0) > 8) { x0 = null; return; }
+    if (!locked && Math.abs(dx) > 10) { locked = true; face.setPointerCapture?.(e.pointerId); face.style.transition = 'none'; row.classList.add('open'); }
+    if (locked) set(Math.min(onRight ? 140 : 0, base + dx));
+  });
+  const end = () => {
+    if (x0 == null) return;
+    x0 = null; face.style.transition = '';
+    if (!locked) return;
+    const x = base + dx;
+    if (x < -row.offsetWidth * 0.6) return kill();
+    if (onRight && x > 72) { set(row.offsetWidth); row.classList.add('gone'); return setTimeout(onRight, 180); }
+    if (x < -40) { if (openRow && openRow !== face) closeRow(); set(-REVEAL); openRow = face; haptic(); }
+    else { set(0); row.classList.remove('open'); if (openRow === face) openRow = null; }
+  };
+  face.addEventListener('pointerup', end); face.addEventListener('pointercancel', end);
+  face.addEventListener('click', e => {
+    if (locked && Math.abs(dx) > 10) { e.preventDefault(); e.stopPropagation(); return; }
+    if (openRow === face) { e.preventDefault(); e.stopPropagation(); closeRow(); }
+  }, true);
+}
+export const swRow = (inner, label = 'Delete', cls = '') =>
+  `<div class="sw-row ${cls}"><button type="button" class="sw-del" aria-label="${esc(label)}">${icon('trash', 20)}<span>Delete</span></button><div class="sw-face">${inner}</div></div>`;
+
+// Long-press (500 ms, cancelled by movement). Suppresses the click that follows.
+export function longPress(root, sel, fn) {
+  let t = null, x0 = 0, y0 = 0, fired = false;
+  root.addEventListener('pointerdown', e => {
+    const el = e.target.closest(sel); if (!el || e.button) return;
+    fired = false; x0 = e.clientX; y0 = e.clientY;
+    t = setTimeout(() => { fired = true; haptic(); fn(el); }, 500);
+  });
+  root.addEventListener('pointermove', e => { if (t && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) { clearTimeout(t); t = null; } });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) root.addEventListener(ev, () => { clearTimeout(t); t = null; });
+  root.addEventListener('click', e => { if (fired && e.target.closest(sel)) { e.preventDefault(); e.stopPropagation(); fired = false; } }, true);
+  root.addEventListener('contextmenu', e => { if (e.target.closest(sel)) e.preventDefault(); });
+}
+
 // Fly a picture from one element to another (e.g. new item -> Closet tab icon).
 export function flyTo(src, target, url) {
-  if (!src || !target || reduced()) return;
+  if (!src || !target || reduced() || !target.getClientRects().length) return;
   const a = src.getBoundingClientRect(), b = target.getBoundingClientRect();
   const img = Object.assign(document.createElement('img'), { src: url, className: 'flyer', alt: '' });
   Object.assign(img.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
