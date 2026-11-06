@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 120" role="img" aria-label="ATTINERA — Dress for the day ahead">
+  <rect width="120" height="120" rx="28" fill="#F7F7FF"/>
+  <path d="M60 40 V33 C60 26 69 24 69 17 C69 11 64 8 60 8 C55 8 51 11 51 16" fill="none" stroke="#495867" stroke-width="6" stroke-linecap="round"/>
+  <path d="M60 40 L22 98 M60 40 L98 98" fill="none" stroke="#577399" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 76 H84" fill="none" stroke="#FE5F55" stroke-width="9" stroke-linecap="round"/>
+  <text x="140" y="68" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="44" font-weight="700" letter-spacing="2" fill="#495867">ATTINERA<tspan fill="#FE5F55">.</tspan></text>
+  <text x="142" y="94" font-family="'Segoe UI', Helvetica, Arial, sans-serif" font-size="15" fill="#577399">Dress for the day ahead</text>
+</svg>
