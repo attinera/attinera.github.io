@@ -64,8 +64,10 @@ export async function initSync({ onMerge, onRecovery } = {}) {
     if (event === 'PASSWORD_RECOVERY') setTimeout(() => onRecovery?.(), 0);
     const next = session?.user || null;
     if (next?.id === user?.id) return;
+    const was = user;
     user = next;
     if (user) setTimeout(() => signedIn(onMerge), 0); // never await Supabase calls inside this callback
+    else if (was) setTimeout(() => signedOut(), 0);   // expired/revoked session or signed out in another tab: drop their data
     else setStatus({ state: 'guest' });
   });
   if (/[?&]code=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
@@ -267,20 +269,38 @@ export async function signUp(email, password) { return (await client()).auth.sig
 export async function magicLink(email) { return (await client()).auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl() } }); }
 export async function resetPassword(email) { return (await client()).auth.resetPasswordForEmail(email, { redirectTo: redirectUrl() + '#me/account' }); }
 export async function setPassword(password) { return (await client()).auth.updateUser({ password }); }
+async function signedOut() {
+  user = null; await wipeLocal(); await db.setSetting('syncUser', null);
+  setStatus({ state: 'guest', at: 0 }); dispatchEvent(new Event('attinera:account'));
+}
 export async function signOut() {
   try { await flush(); } catch {}
   await (await client()).auth.signOut();
-  user = null; await wipeLocal(); await db.setSetting('syncUser', null);
-  setStatus({ state: 'guest', at: 0 }); dispatchEvent(new Event('attinera:account'));
+  await signedOut();
+}
+// Every object path under prefix (Storage lists one folder level per call, 100 per page).
+async function listAll(st, prefix) {
+  const out = [];
+  for (let offset = 0; ; offset += 100) {
+    const { data, error } = await st.list(prefix, { limit: 100, offset });
+    if (error) throw error;
+    for (const f of data) {
+      if (f.id) out.push(`${prefix}/${f.name}`);                 // a file
+      else out.push(...await listAll(st, `${prefix}/${f.name}`)); // a folder (item id)
+    }
+    if (data.length < 100) return out;
+  }
 }
 // Deletes every row and photo, then the login itself (SQL function delete_my_account), then signs out.
 export async function deleteAccount() {
   const c = await client(), st = c.storage.from(BUCKET);
-  const { data: folders } = await st.list(user.id, { limit: 1000 });
-  for (const f of folders || []) {
-    const { data: files } = await st.list(`${user.id}/${f.name}`, { limit: 100 });
-    if (files?.length) await st.remove(files.map(x => `${user.id}/${f.name}/${x.name}`));
+  // Photos first; stop before touching rows or the login if any photo can't be removed.
+  const paths = await listAll(st, user.id);
+  for (let i = 0; i < paths.length; i += 100) {
+    const { error } = await st.remove(paths.slice(i, i + 100));
+    if (error) throw error;
   }
+  if ((await listAll(st, user.id)).length) throw new Error('Some photos could not be deleted. Try again.');
   for (const t of [...TABLES, 'profiles']) {
     const { error } = await c.from(t).delete().eq(t === 'profiles' ? 'id' : 'user_id', user.id);
     if (error) throw error;
@@ -288,6 +308,5 @@ export async function deleteAccount() {
   const { error } = await c.rpc('delete_my_account');
   if (error) throw error;
   await c.auth.signOut().catch(() => {});
-  user = null; await wipeLocal(); await db.setSetting('syncUser', null);
-  setStatus({ state: 'guest', at: 0 }); dispatchEvent(new Event('attinera:account'));
+  await signedOut();
 }

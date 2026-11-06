@@ -134,10 +134,13 @@ function storeTile([n, url, logo, tag], saved) {
   return `<div class="store"><a href="${esc(url)}" ${REL}><span class="logo"><img src="assets/stores/${esc(logo)}" alt="${esc(n)} logo" loading="lazy"></span>
     <span class="sname">${esc(n)}</span>${tag ? `<span class="tag">${esc(tag)}</span>` : ''}</a>${heart('store', n, saved.includes(n), n)}</div>`;
 }
+// Saved products can come from imports or sync, so only https links/images reach the page (blocks javascript: etc).
+const https = u => { try { return new URL(u).protocol === 'https:' ? u : ''; } catch { return ''; } };
 function productCard(p, saved) {
-  return `<article class="pcard"><a class="pimg" href="${esc(p.url)}" ${REL}><img src="${esc(p.img)}" alt="" loading="lazy"></a>
+  const url = https(p.url) || '#', img = https(p.img);
+  return `<article class="pcard"><a class="pimg" href="${esc(url)}" ${REL}><img src="${esc(img)}" alt="" loading="lazy"></a>
     ${heart('prod', p.id, !!saved[p.id], p.name)}
-    <div class="pb"><span class="brandname">${esc(p.brand)}</span><a class="pname" href="${esc(p.url)}" ${REL}>${esc(p.name)}</a>
+    <div class="pb"><span class="brandname">${esc(p.brand)}</span><a class="pname" href="${esc(url)}" ${REL}>${esc(p.name)}</a>
     <b>${p.priceVaries ? 'From ' : ''}${money(p.price)}</b></div></article>`;
 }
 function secondHand(label) {
