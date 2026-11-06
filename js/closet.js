@@ -21,7 +21,7 @@ export function itemCard(i, limits) {
   return `<a class="icard" href="#item/${esc(i.id)}">
     <img src="${blobUrl(i)}" alt="${esc(name(i))}" loading="lazy">
     <span class="dot st-${esc(i.status)}" title="${esc(statusLabel[i.status])}"></span>
-    ${lim ? `<span class="wc">${i.wearCount || 0}/${lim}</span>` : ''}
+    ${lim ? `<span class="wc">${esc(i.wearCount || 0)}/${esc(lim)}</span>` : ''}
     ${i.status === 'hamper' ? '<span class="chip coral sm">Needs washing</span>' : ''}
     <span class="cap">${esc(cap(name(i)))}</span></a>`;
 }
@@ -92,13 +92,13 @@ function formHtml(it, locs, limits, guess = {}) {
       <input type="hidden" name="colours" value="${esc(JSON.stringify(it.colours || []))}"></fieldset>
     <fieldset><legend>Gender</legend>${chips('gender', Object.entries(GENDERS), it.gender || 'unisex')}</fieldset>
     <fieldset><legend>Formality</legend>${chips('formality', FORMALITY.map(f => [f, FORMALITY_LABEL[f]]), it.formality || 'casual')}</fieldset>
-    <label class="field">Warmth <output name="wout">${it.warmth || 3}</output>/5
-      <input type="range" name="warmth" min="1" max="5" value="${it.warmth || 3}"><span class="range-ends"><span>Summer-light</span><span>Winter-heavy</span></span></label>
+    <label class="field">Warmth <output name="wout">${esc(it.warmth || 3)}</output>/5
+      <input type="range" name="warmth" min="1" max="5" value="${esc(it.warmth || 3)}"><span class="range-ends"><span>Summer-light</span><span>Winter-heavy</span></span></label>
     <fieldset><legend>Seasons</legend>${chips('seasons', SEASONS.map(s => [s, cap(s)]), it.seasons || [], 'checkbox')}</fieldset>
     <label class="chip lone"><input type="checkbox" name="waterproof"${it.waterproof ? ' checked' : ''}> Waterproof</label>
     <label class="field">Lives in<select name="homeLocationId">${opts(locs.map(l => [l.id, l.name]), it.homeLocationId)}</select></label>
     <fieldset><legend>Wash group</legend>${chips('washGroup', Object.entries(WASH_GROUPS), it.washGroup || 'colours')}</fieldset>
-    <label class="field">Wears before washing<input type="number" name="wearLimit" min="1" max="99" inputmode="numeric" value="${it.wearLimit || ''}" placeholder="Default: ${defLimit}"></label>
+    <label class="field">Wears before washing<input type="number" name="wearLimit" min="1" max="99" inputmode="numeric" value="${esc(it.wearLimit || '')}" placeholder="Default: ${esc(defLimit)}"></label>
     ${it.id ? `<label class="field">Status<select name="status">${opts(STATUSES.map(s => [s, statusLabel[s]]), it.status)}</select></label>` : ''}
     <label class="field">Notes<textarea name="notes" rows="2">${esc(it.notes || '')}</textarea></label>
   </form>`;
@@ -141,7 +141,7 @@ export async function renderItem(main, id) {
       <img class="hero-photo" src="${blobUrl(it, 'photo')}" alt="${esc(name(it))}">
       <div>
         <h1 class="h1">${esc(cap(name(it)))}</h1>
-        <p><span class="dot inline st-${esc(it.status)}"></span> ${esc(statusLabel[it.status])}${lim ? ` · worn ${it.wearCount || 0} of ${lim} before wash` : ' · no washing needed'}
+        <p><span class="dot inline st-${esc(it.status)}"></span> ${esc(statusLabel[it.status])}${lim ? ` · worn ${esc(it.wearCount || 0)} of ${esc(lim)} before wash` : ' · no washing needed'}
           ${it.status === 'hamper' ? ' <span class="chip coral sm">Needs washing</span>' : ''}</p>
         <div class="actions"><button class="btn primary" id="wearOne"${it.status !== 'clean' && it.status !== 'worn' ? ' disabled' : ''}>${icon('check', 20)} Mark as worn</button></div>
         <div class="card">
@@ -175,7 +175,7 @@ export function openAdd() {
     <input type="file" id="capIn" accept="image/*" capture="environment" hidden>
     <input type="file" id="galIn" accept="image/*" multiple hidden>
     <button class="btn ghost wide" data-close>Cancel</button>`);
-  const take = files => { if (files.length) processQueue([...files]); };
+  const take = files => { if (files.length) processQueue([...files], openAdd); };
   $('#capIn', p).onchange = e => take(e.target.files);
   $('#galIn', p).onchange = e => take(e.target.files);
   $('#pickPhotos', p).onclick = () => $('#galIn', p).click();
@@ -206,13 +206,14 @@ async function camera(fallback) {
     c.width = video.videoWidth; c.height = video.videoHeight;
     c.getContext('2d').drawImage(video, 0, 0);
     stop();
-    c.toBlob(b => b && processQueue([b]), 'image/jpeg', 0.92);
+    c.toBlob(b => b && processQueue([b], () => camera(fallback)), 'image/jpeg', 0.92);
   };
 }
 
-async function processQueue(files) {
+// retake: how to take another photo if this one isn't clothing (camera again, or the add sheet).
+async function processQueue(files, retake = openAdd) {
   const [locs, limits] = await Promise.all([getLocations(), getLimits()]);
-  let saved = 0;
+  let saved = 0, skipped = 0;
   for (const [n, file] of files.entries()) {
     const head = files.length > 1 ? `<p class="muted">Photo ${n + 1} of ${files.length}</p>` : '';
     let photo, thumb;
@@ -225,9 +226,24 @@ async function processQueue(files) {
       <button class="btn ghost" id="skipAi">Skip, tag it myself</button></div></div>`, { full: true });
     setProgress(pct => { const b = $('#bar'); if (b) b.style.transform = `scaleX(${pct / 100})`; });
     const skip = new Promise(res => { $('#skipAi', p).onclick = () => res({ ai: false, colours: [] }); });
-    const g = await Promise.race([analyze(photo), skip]);
+    let g = await Promise.race([analyze(photo), skip]);
     setProgress(null);
     if (!document.body.contains(p)) { URL.revokeObjectURL(url); break; } // user closed the sheet
+    if (g.notClothing && files.length > 1) { skipped++; URL.revokeObjectURL(url); continue; } // batch: skip quietly, report at end
+    if (g.notClothing) {
+      $('#aiState', p).innerHTML = `<div class="notcloth"><h2 class="h2">This doesn't look like clothing</h2>
+        <p class="muted">Try a clearer photo of just the piece, laid flat or on a hanger.</p>
+        <div class="actions"><button class="btn primary" id="retake">${icon('camera', 20)} Retake</button><button class="btn ghost" id="addAnyway">Add anyway</button></div></div>`;
+      const choice = await new Promise(res => {
+        $('#retake', p).onclick = () => res('retake');
+        $('#addAnyway', p).onclick = () => res('add');
+        p.parentElement._onClose = () => res(null);
+      });
+      p.parentElement._onClose = null;
+      if (choice !== 'add') { URL.revokeObjectURL(url); if (choice === 'retake') { closeSheet(); retake(); } return; }
+      $('#aiState', p).innerHTML = '<p class="analyzing"><span class="spin"></span> Analyzing…</p>';
+      g = await analyze(photo, true);
+    }
     const category = g.category || 'tops';
     const draft = {
       category, subtype: g.subtype || '', gender: g.gender || 'unisex', formality: g.formality || 'casual',
@@ -253,5 +269,7 @@ async function processQueue(files) {
     if (ok === null) break;
   }
   closeSheet();
-  if (saved) { toast(`Added ${saved} item${saved > 1 ? 's' : ''}`); dispatchEvent(new HashChangeEvent('hashchange')); }
+  const msg = [saved && `Added ${saved} item${saved > 1 ? 's' : ''}`, skipped && `skipped ${skipped} photo${skipped > 1 ? 's' : ''} that didn't look like clothing`].filter(Boolean).join(' · ');
+  if (msg) toast(msg.charAt(0).toUpperCase() + msg.slice(1));
+  if (saved) dispatchEvent(new HashChangeEvent('hashchange'));
 }

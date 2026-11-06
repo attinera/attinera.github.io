@@ -255,3 +255,14 @@ export function planOutfit({ items, hours, stops = [], seed = 0, choose = {}, li
   }
   return { picks, missing: [...new Set(missing)], notes, bring, tips, coldest, rainMax, band, need: FORMALITY[need], activeOnly };
 }
+
+// ---- "is this clothing?" gate: first CLIP pass before tagging
+export const GATE_CLOTHING = ['a photo of a clothing item', 'a photo of shoes', 'a photo of an accessory like a hat, bag or belt'];
+export const GATE_OTHER = ['a photo of a person’s face', 'a photo of food', 'a photo of a pet', 'a photo of furniture',
+  'a photo of a phone or electronics', 'a photo of a room', 'a photo of text or a document', 'a photo of a car', 'a photo of a plant', 'a random object'];
+// scores: [{label, score}] over GATE_CLOTHING + GATE_OTHER (softmax). Clothing must win AND total >= 0.5.
+export function clothingVerdict(scores) {
+  const top = scores.reduce((a, b) => b.score > a.score ? b : a);
+  const confidence = scores.filter(s => GATE_CLOTHING.includes(s.label)).reduce((t, s) => t + s.score, 0);
+  return { ok: GATE_CLOTHING.includes(top.label) && confidence >= 0.5, confidence, top: top.label };
+}

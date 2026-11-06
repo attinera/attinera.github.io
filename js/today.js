@@ -120,7 +120,7 @@ function planHtml(plan, items, isToday) {
 function wornHtml(list) {
   const out = list.filter(i => i.status === 'worn');
   return `<div class="stack">${list.map(i => `<div class="pick"><img src="${blobUrl(i)}" alt=""><div><b>${esc(cap(itemName(i)))}</b>
-      <span class="muted small">${i.status === 'worn' ? 'wearing' : i.status === 'hamper' ? 'in the hamper' : i.status}</span></div></div>`).join('')}</div>
+      <span class="muted small">${i.status === 'worn' ? 'wearing' : i.status === 'hamper' ? 'in the hamper' : esc(i.status)}</span></div></div>`).join('')}</div>
     ${out.length ? `<div class="card eod"><h3 class="h3">End of day: put today's outfit back or in the hamper?</h3>
       ${out.map(i => `<div class="row-between line"><span>${esc(cap(itemName(i)))}</span><span class="row">
         <button class="btn ghost sm" data-back="${esc(i.id)}">Put back</button><button class="btn ghost sm" data-ham="${esc(i.id)}">Hamper</button></span></div>`).join('')}

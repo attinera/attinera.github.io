@@ -1,6 +1,6 @@
 // Me tab: city, units, style, wear limits, storage locations, low-supply thresholds, export/import/erase.
 import * as db from './db.js';
-import { DEFAULT_LIMITS, LIMIT_LABEL, DEFAULT_LOW_SUPPLY, PALETTE, FORMALITY, FORMALITY_LABEL } from './model.js';
+import { DEFAULT_LIMITS, LIMIT_LABEL, DEFAULT_LOW_SUPPLY, PALETTE, FORMALITY, FORMALITY_LABEL, CATEGORIES, STATUSES, WASH_GROUPS, SEASONS } from './model.js';
 import { geocode, getCity, TORONTO } from './weather.js';
 import { icon, esc, $, opts, toast, confirmTap, cap, setUnits } from './ui.js';
 import { getLocations } from './closet.js';
@@ -27,11 +27,11 @@ export async function renderMe(main) {
       <label class="field inline">Shop for<select id="shopGender">${opts([['all', 'Everyone'], ['m', 'Men'], ['w', 'Women']], gender)}</select></label></section>
 
     <section class="card"><h2 class="h3">Wears before washing</h2>
-      <div class="numgrid">${Object.keys(DEFAULT_LIMITS).map(k => `<label>${LIMIT_LABEL[k]}<input type="number" min="1" max="99" inputmode="numeric" data-limit="${k}" value="${limits[k] || DEFAULT_LIMITS[k]}"></label>`).join('')}</div>
+      <div class="numgrid">${Object.keys(DEFAULT_LIMITS).map(k => `<label>${LIMIT_LABEL[k]}<input type="number" min="1" max="99" inputmode="numeric" data-limit="${k}" value="${esc(limits[k] || DEFAULT_LIMITS[k])}"></label>`).join('')}</div>
       <p class="muted small">Shoes and accessories never need washing.</p></section>
 
     <section class="card"><h2 class="h3">Low-supply warnings</h2>
-      <div class="numgrid">${Object.keys(DEFAULT_LOW_SUPPLY).map(k => `<label>Warn when clean ${k} below<input type="number" min="0" max="30" data-low="${k}" value="${low[k] ?? DEFAULT_LOW_SUPPLY[k]}"></label>`).join('')}</div></section>
+      <div class="numgrid">${Object.keys(DEFAULT_LOW_SUPPLY).map(k => `<label>Warn when clean ${k} below<input type="number" min="0" max="30" data-low="${k}" value="${esc(low[k] ?? DEFAULT_LOW_SUPPLY[k])}"></label>`).join('')}</div></section>
 
     <section class="card"><h2 class="h3">Where things live</h2>
       <div class="list">${locs.map(l => `<div class="row loc"><input data-locname="${esc(l.id)}" value="${esc(l.name)}" aria-label="Location name">
@@ -105,10 +105,29 @@ async function exportData() {
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   toast(`Exported ${items.length} items`);
 }
+// Backup files can come from anywhere: coerce every field to its expected type before it reaches the UI.
+const num = (v, lo, hi, d) => Number.isFinite(+v) ? Math.min(hi, Math.max(lo, Math.trunc(+v))) : d;
+const pick = (v, list, d) => list.includes(v) ? v : d;
+const str = (v, max = 200) => typeof v === 'string' ? v.slice(0, max) : '';
+const isImg = b => b instanceof Blob && /^image\//.test(b.type) ? b : null;
+function clean(i) {
+  return {
+    id: str(i.id, 64) || db.uid(), createdAt: num(i.createdAt, 0, 9e15, Date.now()), updatedAt: num(i.updatedAt, 0, 9e15, Date.now()),
+    photo: isImg(i.photo), thumb: isImg(i.thumb),
+    category: pick(i.category, CATEGORIES, 'tops'), subtype: str(i.subtype, 40), gender: pick(i.gender, ['mens', 'womens', 'unisex'], 'unisex'),
+    formality: pick(i.formality, FORMALITY, 'casual'),
+    colours: (Array.isArray(i.colours) ? i.colours : []).slice(0, 3).filter(c => PALETTE[c?.name]).map(c => ({ name: c.name, hex: /^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : PALETTE[c.name] })),
+    warmth: num(i.warmth, 1, 5, 3), seasons: (Array.isArray(i.seasons) ? i.seasons : []).filter(x => SEASONS.includes(x)),
+    waterproof: i.waterproof === true, status: pick(i.status, STATUSES, 'clean'), wearCount: num(i.wearCount, 0, 999, 0),
+    wearLimit: i.wearLimit == null ? null : num(i.wearLimit, 1, 99, null), homeLocationId: str(i.homeLocationId, 64),
+    washGroup: pick(i.washGroup, Object.keys(WASH_GROUPS), 'colours'), lastWorn: i.lastWorn == null ? null : num(i.lastWorn, 0, 9e15, null),
+    timesWornTotal: num(i.timesWornTotal, 0, 99999, 0), notes: str(i.notes, 2000),
+  };
+}
 async function importData(file) {
   const data = JSON.parse(await file.text());
   if (data.app !== 'ATTINERA' || !Array.isArray(data.items)) throw new Error('Not an ATTINERA backup');
-  const items = await Promise.all(data.items.map(async i => ({ ...i, photo: await fromDataUrl(i.photo), thumb: await fromDataUrl(i.thumb) })));
+  const items = await Promise.all(data.items.map(async i => clean({ ...i, photo: await fromDataUrl(i.photo), thumb: await fromDataUrl(i.thumb) })));
   for (const s of ['items', 'locations', 'outfits']) await db.clear(s);
   await db.putMany('items', items);
   await db.putMany('locations', data.locations?.length ? data.locations : db.DEFAULT_LOCATIONS);

@@ -29,25 +29,27 @@ function getWorker() {
     }
     const p = pending.get(data.id); if (!p) return;
     pending.delete(data.id);
-    data.type === 'result' ? p.res(data.out) : p.rej(new Error(data.error));
+    data.type === 'result' ? p.res(data) : p.rej(new Error(data.error));
   };
   worker.onerror = e => { for (const p of pending.values()) p.rej(e); pending.clear(); worker = null; };
   return worker;
 }
-const classify = blob => new Promise((res, rej) => {
+const classify = (blob, force) => new Promise((res, rej) => {
   const id = ++seq; pending.set(id, { res, rej });
-  try { getWorker().postMessage({ id, blob, sets: SETS }); } catch (e) { pending.delete(id); rej(e); }
+  try { getWorker().postMessage({ id, blob, sets: SETS, force }); } catch (e) { pending.delete(id); rej(e); }
 });
 const top = r => r.reduce((a, b) => b.score > a.score ? b : a);
 
 export const modelReady = () => { try { return localStorage.getItem('attinera-ai-ready') === '1'; } catch { return false; } };
 
 // Never throws: on AI failure returns colours only, with ai:false.
-export async function analyze(blob) {
+// Not clothing -> {notClothing:true, gate}; force=true ("Add anyway") skips the gate and tags anyway.
+export async function analyze(blob, force = false) {
   const colours = await coloursOf(blob).catch(() => []);
   try {
-    const r = await classify(blob);
+    const { gate, out: r } = await classify(blob, force);
     try { localStorage.setItem('attinera-ai-ready', '1'); } catch {}
+    if (!r) return { ai: true, notClothing: true, gate, colours };
     const st = top(r.subtype), g = top(r.gender), f = top(r.formality), w = top(r.weight);
     const base = SUBTYPES[st.label][2];
     return {

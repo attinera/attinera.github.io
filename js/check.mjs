@@ -51,3 +51,11 @@ const px = [...Array(300).fill([200, 20, 40]), ...Array(700).fill([245, 245, 245
 assert.deepEqual(pickColours(px, [245, 245, 245]).map(c => c.name), ['red']);
 assert.equal(defaultWashGroup('tops', 't-shirt', [{ name: 'black' }]), 'darks');
 console.log('check ok');
+
+// clothing gate
+import { clothingVerdict, GATE_CLOTHING, GATE_OTHER } from './model.js';
+const sc = (hit, s) => [...GATE_CLOTHING, ...GATE_OTHER].map(label => ({ label, score: label === hit ? s : (1 - s) / 12 }));
+assert.equal(clothingVerdict(sc('a photo of shoes', 0.8)).ok, true);
+assert.equal(clothingVerdict(sc('a photo of food', 0.7)).ok, false);
+assert.equal(clothingVerdict(sc('a photo of a clothing item', 0.3)).ok, false, 'clothing wins but total under 0.5');
+console.log('gate ok');
