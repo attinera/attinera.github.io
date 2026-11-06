@@ -49,7 +49,7 @@ async function route() {
     console.error(e);
     main.innerHTML = '<div class="pad"><div class="card alert"><b>Something went wrong loading this page.</b></div></div>';
   }
-  if (!(tab === 'me' && !id)) main.insertAdjacentHTML('beforeend', '<footer class="foot">© 2026 EJ Empires · ATTINERA prototype</footer>'); // Me has its own
+  if (!(tab === 'me' && !id)) main.insertAdjacentHTML('beforeend', '<footer class="foot">© 2026 ATTINERA</footer>'); // Me has its own
   const cls = isSub ? 'view-sub' : active !== lastTab ? 'view-in' : '';
   main.classList.remove('view-in', 'view-sub'); void main.offsetWidth;
   if (cls) main.classList.add(cls);

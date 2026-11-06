@@ -284,3 +284,51 @@ export function streak(outfits, today) {
   while (worn.has(d.toLocaleDateString('en-CA'))) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
+
+// ---- Shop recommendations (rule-based). Product fields from products.js: cat, style, warmth 1-3, color bucket, wp, g.
+const GAP_CAT = {
+  'waterproof-jacket': 'outerwear', 'winter-coat': 'outerwear', 'light-jacket': 'outerwear', blazer: 'outerwear',
+  'formal-top': 'top', top: 'top', sweater: 'top', 'formal-bottom': 'bottom', bottom: 'bottom',
+  'formal-shoes': 'shoes', shoes: 'shoes', boots: 'shoes', hat: 'accessory', gloves: 'accessory', scarf: 'accessory',
+};
+// Second-hand only for these; never underwear, socks, sleepwear (or anything else).
+export const SECOND_HAND_OK = new Set(['top', 'bottom', 'outerwear', 'shoes', 'accessory']);
+export const gapSecondHand = g => SECOND_HAND_OK.has(GAP_CAT[g]);
+const SHOP_CAT = { top: ['tops', 'Tops'], bottom: ['bottoms', 'Bottoms'], outerwear: ['outerwear', 'Outerwear'], shoes: ['shoes', 'Shoes'], accessory: ['accessories', 'Accessories'], dress: ['dresses-skirts', 'Dresses'] };
+const WANT_STYLE = { casual: ['casual'], 'smart-casual': ['smart', 'business'], formal: ['formal', 'business'], activewear: ['sport'] };
+
+// Score one product against the closet, style settings, weather and stops. Higher = better.
+export function scoreProduct(p, { colourful = 0, favBright = false, styles, coldest = 12, rainMax = 0 }) {
+  let s = 0;
+  if (styles.has(p.style)) s += 3;
+  if (p.color === 'neutral' || p.color === 'dark') s += 2;           // pairs with anything
+  else if (favBright || colourful < 0.3) s += p.color === 'pattern' ? 1 : 2; // a neutral closet can take an accent
+  if (p.cat === 'outerwear' || p.cat === 'top') {
+    const want = coldest < 5 ? 3 : coldest < 15 ? 2 : 1;
+    s += Math.max(0, 2 - Math.abs((p.warmth || 2) - want));
+  }
+  if (rainMax >= 50 && p.wp && (p.cat === 'outerwear' || p.cat === 'shoes')) s += 2;
+  return s;
+}
+
+// -> [{key, label, gap?, secondHand, list}] ; sections with no products are dropped.
+export function recommend({ products, items = [], style = {}, gender = 'all', gaps = [], stops = [], coldest = 12, rainMax = 0, per = 12 }) {
+  const fits = p => gender === 'all' || p.g === gender || p.g === 'u' || p.g === 'unknown';
+  const coloured = items.filter(i => i.colours?.[0] && !NEUTRALS.has(i.colours[0].name)).length;
+  const ctx = {
+    colourful: items.length ? coloured / items.length : 0,
+    favBright: (style.colours || []).some(c => !NEUTRALS.has(c)),
+    styles: new Set([style.formality || 'casual', ...stops.map(s => STOP_TYPES[s.type] || 'casual')].flatMap(f => WANT_STYLE[f] || [])),
+    coldest, rainMax,
+  };
+  const rank = list => {
+    const seen = new Set();
+    return list.filter(fits).map(p => [scoreProduct(p, ctx), p]).sort((a, b) => b[0] - a[0] || a[1].price - b[1].price || a[1].id.localeCompare(b[1].id))
+      .map(x => x[1]).filter(p => { const k = p.brand + p.name; return !seen.has(k) && seen.add(k); }).slice(0, per);
+  };
+  const out = gaps.filter(g => GAPS[g]).map(g => ({ key: g, gap: true, label: GAPS[g][0], secondHand: gapSecondHand(g), list: rank(products.filter(GAPS[g][1])) }));
+  const owned = c => items.filter(i => i.category === SHOP_CAT[c][0]).length;
+  const cats = Object.keys(SHOP_CAT).filter(c => c !== 'dress' || owned('dress') || gender === 'w').sort((a, b) => owned(a) - owned(b));
+  for (const c of cats) out.push({ key: c, label: SHOP_CAT[c][1], secondHand: SECOND_HAND_OK.has(c), list: rank(products.filter(p => p.cat === c)) });
+  return out.filter(s => s.list.length);
+}

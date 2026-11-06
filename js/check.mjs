@@ -89,3 +89,20 @@ assert.equal(streak([o('2026-11-04'), o('2026-11-05'), o('2026-11-06')], '2026-1
 assert.equal(streak([o('2026-11-04'), o('2026-11-05')], '2026-11-06'), 2, 'today not worn yet keeps streak');
 assert.equal(streak([o('2026-11-03')], '2026-11-06'), 0);
 console.log('cleanup/swipe/hearts ok');
+
+// ---- shop recommendations
+{
+  const { recommend, gapSecondHand } = await import('./model.js');
+  const P = [
+    { id: 'a', name: 'Rain shell', brand: 'X', cat: 'outerwear', style: 'casual', warmth: 2, color: 'dark', wp: true, g: 'u', price: 90 },
+    { id: 'b', name: 'Tee', brand: 'X', cat: 'top', style: 'casual', warmth: 1, color: 'bright', g: 'u', price: 10 },
+    { id: 'c', name: 'Oxford shirt', brand: 'X', cat: 'top', style: 'smart', warmth: 1, color: 'neutral', g: 'u', price: 40 },
+  ];
+  const r = recommend({ products: P, gaps: ['waterproof-jacket', 'socks'], style: { formality: 'smart-casual' }, rainMax: 80 });
+  assert(!r.some(s => s.key === 'socks'), 'empty sections hidden');
+  assert(r[0].key === 'waterproof-jacket' && r[0].list[0].id === 'a', 'gap first');
+  assert(r.find(s => s.key === 'top').list[0].id === 'c', 'style match ranks first');
+  assert(!r.some(s => s.key === 'bottom'), 'no bottoms in catalog -> hidden');
+  assert(!gapSecondHand('socks') && !gapSecondHand('underwear') && gapSecondHand('boots'), 'second-hand rules');
+  console.log('recommend ok');
+}

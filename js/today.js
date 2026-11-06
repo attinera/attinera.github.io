@@ -174,7 +174,7 @@ function pullToRefresh(main) {
   };
 }
 
-// 1080x1350 share image: outfit photos on paper, date + weather, logo, (c) EJ Empires.
+// 1080x1350 share image: outfit photos on paper, date + weather, logo, (c) 2026 ATTINERA.
 async function shareOutfit(list, cur, day) {
   const pics = list.filter(i => i.photo && !['underwear', 'socks'].includes(i.category)).slice(0, 6);
   const c = Object.assign(document.createElement('canvas'), { width: 1080, height: 1350 }), g = c.getContext('2d');
@@ -192,7 +192,7 @@ async function shareOutfit(list, cur, day) {
     g.save(); g.beginPath(); g.roundRect(x, y, size, size, 28); g.clip(); g.drawImage(bmp, x, y, size, size); g.restore();
   }
   g.fillStyle = '#577399'; g.font = '400 28px Inter, Segoe UI, sans-serif'; g.textAlign = 'center';
-  g.fillText('© EJ Empires · ATTINERA', 540, 1300);
+  g.fillText('© 2026 ATTINERA', 540, 1300);
   const blob = await new Promise(r => c.toBlob(r, 'image/png'));
   const file = new File([blob], `attinera-outfit-${selected}.png`, { type: 'image/png' });
   try {

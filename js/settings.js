@@ -5,7 +5,7 @@ import { geocode, getCity, getForecast, TORONTO } from './weather.js';
 import { icon, esc, $, $$, opts, toast, cap, setUnits, temp, band, confirmSheet, locIcon, haptic, loader } from './ui.js';
 import { getLocations } from './closet.js';
 
-const VERSION = '2.0.0';
+const VERSION = '2.1.0';
 const LOC_TYPES = ['rail', 'drawer', 'shelf', 'rack', 'hook', 'bin'];
 const LOC_NAME = { rail: 'Rail', drawer: 'Drawer', shelf: 'Shelf', rack: 'Shoe rack', hook: 'Hook', bin: 'Bin' };
 const back = `<a href="#me" class="back">${icon('back', 20)} Me</a>`;
@@ -32,7 +32,7 @@ export async function renderMe(main, page) {
       <a class="row-link" href="#me/data">${icon('download')}<span>Your data<small>Export, import, erase</small></span>${icon('chevron-right', 20)}</a>
       <a class="row-link" href="#me/legal">${icon('file-text')}<span>Legal<small>Privacy, terms</small></span>${icon('chevron-right', 20)}</a>
     </div>
-    <p class="foot" style="padding-bottom:0">ATTINERA ${VERSION} · © 2026 EJ Empires</p></div>`;
+    <p class="foot" style="padding-bottom:0">ATTINERA ${VERSION} · © 2026 ATTINERA</p></div>`;
   main.onchange = async e => { if (e.target.id === 'name') { await db.setSetting('name', e.target.value.trim().slice(0, 30)); toast('Saved'); } };
   main.onclick = async e => {
     const b = e.target.closest('[data-units]'); if (!b) return;
