@@ -59,3 +59,33 @@ assert.equal(clothingVerdict(sc('a photo of shoes', 0.8)).ok, true);
 assert.equal(clothingVerdict(sc('a photo of food', 0.7)).ok, false);
 assert.equal(clothingVerdict(sc('a photo of a clothing item', 0.3)).ok, false, 'clothing wins but total under 0.5');
 console.log('gate ok');
+
+// photo cleanup: crop + fallback, lighting
+import { cropBox, lightingFix, unsharp } from './photo.js';
+import { nextChoice, toggleHeart, streak } from './model.js';
+const W = 100, H = 80, mask = new Uint8Array(W * H);
+for (let y = 20; y < 60; y++) for (let x = 30; x < 50; x++) mask[y * W + x] = 255;
+let b = cropBox(mask, W, H);
+assert.deepEqual(b.item, { x0: 30, y0: 20, x1: 49, y1: 59 });
+assert(Math.abs(b.size - 40 * 1.16) < 1e-9 && Math.abs(b.x + b.size / 2 - 40) < 1e-9, 'square, 8% pad, centred');
+b = cropBox(null, W, H); // fallback: background removal failed
+assert.deepEqual([b.x, b.y, b.size, b.item], [10, 0, 80, null]);
+assert.equal(cropBox(new Uint8Array(W * H), W, H).item, null, 'empty mask falls back too');
+const dull = new Uint8ClampedArray([100, 110, 120, 255, 140, 150, 160, 255]);
+lightingFix(dull);
+assert(dull[0] < 20 && dull[4] > 235, 'levels stretch dark->0, light->255');
+const flat = new Uint8ClampedArray(9 * 4).fill(128);
+assert.deepEqual([...unsharp(flat, 3, 3)], [...new Uint8ClampedArray(36).fill(128)], 'flat image unchanged');
+// swipe-to-swap
+assert.deepEqual(nextChoice({}, 'top', 1, 3), { top: 1 });
+assert.deepEqual(nextChoice({ top: 0 }, 'top', -1, 3), { top: 2 }, 'swipe back wraps');
+assert.deepEqual(nextChoice({ top: 0 }, 'top', 1, 1), { top: 0 }, 'single option: no swap');
+// hearts
+assert.deepEqual(toggleHeart(['a'], 'b'), ['a', 'b']);
+assert.deepEqual(toggleHeart(['a', 'b'], 'a'), ['b']);
+// streak
+const o = d => ({ date: d, accepted: true });
+assert.equal(streak([o('2026-11-04'), o('2026-11-05'), o('2026-11-06')], '2026-11-06'), 3);
+assert.equal(streak([o('2026-11-04'), o('2026-11-05')], '2026-11-06'), 2, 'today not worn yet keeps streak');
+assert.equal(streak([o('2026-11-03')], '2026-11-06'), 0);
+console.log('cleanup/swipe/hearts ok');

@@ -1,9 +1,9 @@
 // Offline cache for the app shell. Network-first for our own files (always fresh online, cached offline).
 // Weather is never cached here; the app keeps its own 1-hour copy in IndexedDB.
-const CACHE = 'attinera-v1';
+const CACHE = 'attinera-v2';
 const SHELL = [
   './', 'index.html', 'privacy.html', 'terms.html', 'manifest.webmanifest', 'css/styles.css', 'products.js',
-  'js/app.js', 'js/ui.js', 'js/db.js', 'js/model.js', 'js/ai.js', 'js/ai-worker.js', 'js/closet.js', 'js/laundry.js',
+  'js/app.js', 'js/ui.js', 'js/db.js', 'js/model.js', 'js/ai.js', 'js/ai-worker.js', 'js/cutout-worker.js', 'js/icons.js', 'js/photo.js', 'js/onboarding.js', 'js/closet.js', 'js/laundry.js',
   'js/today.js', 'js/weather.js', 'js/shop.js', 'js/settings.js',
   'assets/attinera-logo-a.svg', 'assets/attinera-logo-c.svg', 'assets/attinera-logo-lockup.svg', 'assets/icon-192.png', 'assets/icon-512.png', 'assets/icon-180.png',
 ];

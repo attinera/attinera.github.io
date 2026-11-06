@@ -8,6 +8,7 @@ export const rainy = c => (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 9
 export const snowy = c => (c >= 71 && c <= 77) || c === 85 || c === 86;
 export const describe = c => c === 0 ? 'Clear' : c <= 2 ? 'Partly cloudy' : c === 3 ? 'Cloudy' : c <= 48 ? 'Fog'
   : snowy(c) ? 'Snow' : c >= 95 ? 'Thunderstorm' : rainy(c) ? 'Rain' : 'Mixed';
+export const wxIcon = c => c <= 1 ? 'sun' : c <= 3 ? 'cloud' : c <= 48 ? 'cloud-fog' : snowy(c) ? 'cloud-snow' : c >= 95 ? 'cloud-storm' : 'cloud-rain';
 export const emoji = c => c === 0 ? '☀️' : c <= 2 ? '⛅' : c === 3 ? '☁️' : c <= 48 ? '🌫️' : snowy(c) ? '❄️' : c >= 95 ? '⛈️' : rainy(c) ? '🌧️' : '🌥️';
 
 export const getCity = () => getSetting('city', TORONTO);

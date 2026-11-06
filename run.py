@@ -150,6 +150,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, '.js': 'text/javascript', '.mjs': 'text/javascript',
                       '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml', '.json': 'application/json'}
 
+    def end_headers(self):
+        self.send_header('Cache-Control', 'no-cache')  # local dev: always pick up edited files
+        super().end_headers()
+
 def lan_ip():
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:

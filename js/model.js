@@ -93,7 +93,7 @@ export function kmeans(px, k = 4, iters = 10) {
 // px: centre-crop pixels; border: average RGB of the image border (treated as background).
 export function pickColours(px, border) {
   const clusters = kmeans(px).filter(c => c.size);
-  if (clusters.length > 1) {
+  if (border && clusters.length > 1) { // border null = pixels are already background-free (cutout)
     const bg = clusters.reduce((a, b) => dist(a.rgb, border) <= dist(b.rgb, border) ? a : b);
     clusters.splice(clusters.indexOf(bg), 1);
   }
@@ -265,4 +265,22 @@ export function clothingVerdict(scores) {
   const top = scores.reduce((a, b) => b.score > a.score ? b : a);
   const confidence = scores.filter(s => GATE_CLOTHING.includes(s.label)).reduce((t, s) => t + s.score, 0);
   return { ok: GATE_CLOTHING.includes(top.label) && confidence >= 0.5, confidence, top: top.label };
+}
+
+// ---- small UI rules
+// Swipe on an outfit tile: next/previous best clean option for that slot.
+export function nextChoice(choose, slot, dir, options) {
+  if (options < 2) return choose;
+  return { ...choose, [slot]: (((choose[slot] || 0) + dir) % options + options) % options };
+}
+// Hearts: tap toggles membership; returns a new array.
+export const toggleHeart = (list, id) => list.includes(id) ? list.filter(x => x !== id) : [...list, id];
+// Days in a row (ending today, or yesterday if today isn't worn yet) with an accepted outfit.
+export function streak(outfits, today) {
+  const worn = new Set(outfits.filter(o => o.accepted).map(o => o.date));
+  const d = new Date(today + 'T12:00');
+  if (!worn.has(today)) d.setDate(d.getDate() - 1);
+  let n = 0;
+  while (worn.has(d.toLocaleDateString('en-CA'))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
 }
