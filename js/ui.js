@@ -141,7 +141,7 @@ export function flyTo(src, target, url) {
   document.body.append(img);
   const dx = b.left + b.width / 2 - (a.left + a.width / 2), dy = b.top + b.height / 2 - (a.top + a.height / 2);
   img.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px,${dy}px) scale(.08)`, opacity: 0.2 }],
-    { duration: 650, easing: 'cubic-bezier(.5,-0.2,.6,1)' }).onfinish = () => {
+    { duration: 650, easing: 'cubic-bezier(.4, 0, .2, 1)' }).onfinish = () => {
     img.remove();
     target.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.25)' }, { transform: 'scale(1)' }], { duration: 300 });
   };
