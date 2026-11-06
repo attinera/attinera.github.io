@@ -1,8 +1,8 @@
 # Deploying Attinera (free)
 
 ## Where it lives
-- Now: `https://jackbedard18-droid.github.io/attinera/` (repo `jackbedard18-droid/attinera`, Pages from `main` / root).
-- Planned: `https://attinera.github.io/` once the repo moves to the free **attinera** GitHub organization.
+- `https://attinera.github.io/` (repo `attinera/attinera.github.io`, Pages from `main` / root).
+- Moved from `jackbedard18-droid/attinera` on November 6, 2026; the steps below are kept for reference.
 
 All paths in the site are relative, so the same files work at both addresses (domain root and `/attinera/`).
 `manifest.webmanifest` uses `start_url: "./#today"` and `scope: "./"`, which resolve correctly at either one.

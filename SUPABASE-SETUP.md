@@ -21,11 +21,9 @@ It is safe to run `setup.sql` again later.
 ## 3. Tell Supabase where the site lives
 **Authentication → URL Configuration**
 - **Site URL:** `https://attinera.github.io/`
-  (until the repo moves to the `attinera` organization, use `https://jackbedard18-droid.github.io/attinera/`)
-- **Redirect URLs:** add both of these, plus your local test address:
+- **Redirect URLs:** add these two:
   - `https://attinera.github.io/**`
-  - `https://jackbedard18-droid.github.io/attinera/**`
-  - `http://localhost:8000/**`
+  - `http://localhost:8000/**` (local testing)
 
 Login links, sign-up confirmations and password-reset emails only redirect to addresses on this list.
 
