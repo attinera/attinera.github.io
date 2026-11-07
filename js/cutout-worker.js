@@ -7,15 +7,16 @@ env.allowLocalModels = false;
 let ready = null;
 const progress = e => postMessage({ type: 'progress', file: e.file, loaded: e.loaded, total: e.total });
 // WebGPU when the browser has it (seconds); WASM fallback (slower, may hit the 20 s limit -> original photo kept).
-const model = async () => {
+// Phones skip WebGPU: the fp32 model (~180 MB) plus GPU buffers can crash a phone browser tab; q8 on WASM is ~45 MB.
+const model = async phone => {
   const opts = { config: { model_type: 'custom' }, progress_callback: progress };
-  if (self.navigator?.gpu && await navigator.gpu.requestAdapter().catch(() => null)) {
+  if (!phone && self.navigator?.gpu && await navigator.gpu.requestAdapter().catch(() => null)) {
     try { return await AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, device: 'webgpu', dtype: 'fp32' }); } catch (e) { console.warn('WebGPU unavailable, using WASM', e); }
   }
   return AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, dtype: 'q8' });
 };
-const load = () => ready ??= Promise.all([
-  model(),
+const load = phone => ready ??= Promise.all([
+  model(phone),
   AutoProcessor.from_pretrained('briaai/RMBG-1.4', {
     config: {
       do_normalize: true, do_pad: false, do_rescale: true, do_resize: true, image_mean: [0.5, 0.5, 0.5],
@@ -27,7 +28,7 @@ const load = () => ready ??= Promise.all([
 
 onmessage = async ({ data }) => {
   try {
-    const [model, processor] = await load();
+    const [model, processor] = await load(data.phone);
     postMessage({ type: 'start', id: data.id }); // model loaded: the 20 s speed limit starts now
     const image = await RawImage.fromBlob(data.blob);
     const { pixel_values } = await processor(image);

@@ -75,7 +75,7 @@ main { display: block; outline: none; }
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; background: var(--card); border-top: 1px solid var(--line);
   padding-bottom: var(--safe-b); height: calc(var(--tabh) + var(--safe-b));
-  display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 3fr) 72px minmax(0, 2fr) minmax(0, 2fr) minmax(0, 2fr);
+  display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); /* equal slots: tabs line up evenly, + takes the 3rd */
   grid-template-areas: "today closet fab laundry shop me";
 }
 .tab-today { grid-area: today; } .tab-closet { grid-area: closet; } .tab-laundry { grid-area: laundry; } .tab-shop { grid-area: shop; } .tab-me { grid-area: me; }
@@ -94,6 +94,8 @@ main { display: block; outline: none; }
 .fab:active { transform: scale(.94); }
 body.fab-open .fab { transform: rotate(45deg); position: relative; z-index: 90; }
 body.fab-open .tabs { z-index: 86; }
+/* Add sheet opened from +: the tab bar stays on top, so lift the sheet content above it. */
+body.fab-open .sheet { padding-bottom: calc(var(--tabh) + var(--safe-b) + var(--s3)); }
 .toast {
   position: fixed; left: 50%; bottom: calc(var(--tabh) + var(--safe-b) + 16px); z-index: 95; transform: translateX(-50%);
   background: var(--slate); color: #fff; padding: 8px 8px 8px 16px; border-radius: 14px; max-width: calc(100vw - 32px); width: max-content;
@@ -133,6 +135,7 @@ body.selecting .toast { bottom: calc(var(--tabh) + var(--safe-b) + 140px); }
 
 /* ---------- laptop: white sidebar with logo, + and labelled nav */
 @media (min-width: 900px) {
+  body.fab-open .sheet { padding-bottom: calc(var(--s3) + var(--safe-b)); } /* no bottom bar on laptop */
   body { padding-bottom: 0; padding-left: 240px; }
   .side-only { display: revert !important; }
   .tabs {
@@ -359,10 +362,10 @@ body.selecting main { padding-bottom: 130px; }
   box-shadow: 0 4px 16px rgba(73, 88, 103, .14); display: flex; flex-direction: column; gap: 12px;
 }
 .hero-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); min-height: 28px; }
-.hero-line { color: var(--on-steel); font-size: 14px; font-weight: 500; }
+.hero .hero-line { color: var(--on-steel); font-size: 14px; font-weight: 500; }
 .hero-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); }
 .hero-title { font-size: 24px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
-.hero-sub { color: var(--on-steel); font-size: 14px; }
+.hero .hero-sub { color: var(--on-steel); margin: 0; font-size: 14px; }
 .hero.empty { padding: var(--s3) var(--s2); }
 .hero .btn.coral { margin-top: 4px; }
 .streak { display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 10px; border-radius: 999px; border: 0; background: rgba(255, 255, 255, .16); color: #fff; font-weight: 600; font-size: 14px; position: relative; }

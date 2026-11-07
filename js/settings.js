@@ -7,7 +7,7 @@ import { icon, esc, $, $$, opts, toast, cap, setUnits, temp, header, confirmShee
 import { getLocations, deleteItems } from './closet.js';
 import * as sync from './sync.js';
 
-const VERSION = '3.0.0';
+const VERSION = '3.0.1';
 const LOC_TYPES = ['rail', 'drawer', 'shelf', 'rack', 'hook', 'bin'];
 const LOC_NAME = { rail: 'Rail', drawer: 'Drawer', shelf: 'Shelf', rack: 'Shoe rack', hook: 'Hook', bin: 'Bin' };
 const sub = (title, text) => header(title, { back: ['#me', 'Me'], sub: text });

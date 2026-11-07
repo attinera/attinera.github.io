@@ -343,7 +343,9 @@ async function processQueue(files, retake = openAdd) {
       g = await analyze(preview, true);
     }
     const stage = $('#stageTxt', p); if (stage) stage.textContent = 'Cutting out the background…';
-    const pic = await cleanPhoto(file, { noCutout: skipped1 });
+    // Never get stuck here: if the photo pipeline fails (phone out of memory), keep the preview as the photo.
+    const pic = await cleanPhoto(file, { noCutout: skipped1 })
+      .catch(e => { console.warn('Photo cleanup failed', e); return { original: preview, cutout: null, colours: null, pick: 'original', reason: 'failed' }; });
     setProgress(null);
     if (!document.body.contains(p)) { URL.revokeObjectURL(url); break; }
     let pick = pic.pick;
