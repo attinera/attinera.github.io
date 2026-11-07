@@ -1,6 +1,6 @@
 // Offline cache for the app shell. Network-first for our own files (always fresh online, cached offline).
 // Weather and Supabase data are never cached here; the app keeps its own copies in IndexedDB.
-const CACHE = 'attinera-v6';
+const CACHE = 'attinera-v7';
 const SHELL = [
   './', 'index.html', 'privacy.html', 'terms.html', 'manifest.webmanifest', 'css/styles.css', 'products.js',
   'js/app.js', 'js/ui.js', 'js/db.js', 'js/model.js', 'js/ai.js', 'js/ai-worker.js', 'js/cutout-worker.js', 'js/icons.js', 'js/photo.js',

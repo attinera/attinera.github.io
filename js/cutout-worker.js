@@ -7,23 +7,24 @@ env.allowLocalModels = false;
 let ready = null;
 const progress = e => postMessage({ type: 'progress', file: e.file, loaded: e.loaded, total: e.total });
 // WebGPU when the browser has it (seconds); WASM fallback (slower, may hit the 20 s limit -> original photo kept).
-// Phones skip WebGPU: the fp32 model (~180 MB) plus GPU buffers can crash a phone browser tab; q8 on WASM is ~45 MB.
+// Phones never load the fp32 model (~180 MB on the GPU can crash a phone tab): fp16 (~90 MB) when the GPU supports it,
+// otherwise q8 on WASM (~45 MB, slower).
 const model = async phone => {
   const opts = { config: { model_type: 'custom' }, progress_callback: progress };
-  if (!phone && self.navigator?.gpu && await navigator.gpu.requestAdapter().catch(() => null)) {
-    try { return await AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, device: 'webgpu', dtype: 'fp32' }); } catch (e) { console.warn('WebGPU unavailable, using WASM', e); }
+  const gpu = self.navigator?.gpu && await navigator.gpu.requestAdapter().catch(() => null);
+  const dtype = !gpu ? null : !phone ? 'fp32' : gpu.features.has('shader-f16') ? 'fp16' : null;
+  if (dtype) {
+    try { return await AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, device: 'webgpu', dtype }); } catch (e) { console.warn('WebGPU unavailable, using WASM', e); }
   }
   return AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, dtype: 'q8' });
 };
-// Phones also run the model at 512 px instead of 1024 (4x less work, so it fits the 20 s limit on WASM);
-// the mask is still scaled back up to the full photo.
 const load = phone => ready ??= Promise.all([
   model(phone),
   AutoProcessor.from_pretrained('briaai/RMBG-1.4', {
     config: {
       do_normalize: true, do_pad: false, do_rescale: true, do_resize: true, image_mean: [0.5, 0.5, 0.5],
       feature_extractor_type: 'ImageFeatureExtractor', image_std: [1, 1, 1], resample: 2,
-      rescale_factor: 0.00392156862745098, size: phone ? { width: 512, height: 512 } : { width: 1024, height: 1024 },
+      rescale_factor: 0.00392156862745098, size: { width: 1024, height: 1024 },
     },
   }),
 ]).catch(err => { ready = null; throw err; });

@@ -132,7 +132,8 @@ async function coloursOf(blob) {
 // ---- cutout pipeline
 let cutWorker = null;
 const cutFiles = {};
-const SLOW_MS = 20000; // removal slower than this (after the model has loaded) -> keep the original photo
+// Removal slower than this (after the model has loaded) -> keep the original photo. Phones on the CPU model need longer.
+const SLOW_MS = PHONE ? 45000 : 20000;
 const cutoutReady = () => { try { return localStorage.getItem('attinera-cutout-ready') === '1'; } catch { return false; } };
 export const cleanupReady = () => modelReady() && cutoutReady();
 
