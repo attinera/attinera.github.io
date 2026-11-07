@@ -15,13 +15,15 @@ const model = async phone => {
   }
   return AutoModel.from_pretrained('briaai/RMBG-1.4', { ...opts, dtype: 'q8' });
 };
+// Phones also run the model at 512 px instead of 1024 (4x less work, so it fits the 20 s limit on WASM);
+// the mask is still scaled back up to the full photo.
 const load = phone => ready ??= Promise.all([
   model(phone),
   AutoProcessor.from_pretrained('briaai/RMBG-1.4', {
     config: {
       do_normalize: true, do_pad: false, do_rescale: true, do_resize: true, image_mean: [0.5, 0.5, 0.5],
       feature_extractor_type: 'ImageFeatureExtractor', image_std: [1, 1, 1], resample: 2,
-      rescale_factor: 0.00392156862745098, size: { width: 1024, height: 1024 },
+      rescale_factor: 0.00392156862745098, size: phone ? { width: 512, height: 512 } : { width: 1024, height: 1024 },
     },
   }),
 ]).catch(err => { ready = null; throw err; });
